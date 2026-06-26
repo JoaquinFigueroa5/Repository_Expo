@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppProvider, useApp } from "./context/AppContext";
-import { pageBg, C } from "./constants/design";
+import { pageBg, C, glassDark } from "./constants/design";
 import { toastVariant, viewTransition } from "./animate/variants";
 import Landing from "./components/views/Landing";
 import Login from "./components/views/auth/Login";
