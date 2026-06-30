@@ -14,6 +14,7 @@ import CatalogView from "./components/views/catalog/CatalogView";
 import ToolModal from "./components/views/catalog/ToolModal";
 import AccountView from "./components/views/account/AccountView";
 import AdminView from "./components/views/admin/AdminView";
+import { Analytics } from "@vercel/analytics/react"
 
 function AppContent() {
   const { state, update, user, logout } = useApp();
@@ -23,7 +24,6 @@ function AppContent() {
   const initialized = useRef(false);
   const programmaticNav = useRef(false);
 
-  // 1. En montaje, leer la URL actual como estado inicial
   useEffect(() => {
     const viewMap: Record<string, string> = {
       '/': 'landing', '/login': 'login', '/register': 'register',
@@ -37,7 +37,6 @@ function AppContent() {
     initialized.current = true
   }, [])
 
-  // 2. state.view → URL (solo después del montaje para no pisar la URL inicial)
   useEffect(() => {
     if (!initialized.current) return
     const pathMap: Record<string, string> = {
@@ -52,7 +51,6 @@ function AppContent() {
     }
   }, [state.view, navigate])
 
-  // 3. URL → state.view (solo back/forward del navegador, no navegaciones programáticas)
   useEffect(() => {
     if (!initialized.current) return
     if (programmaticNav.current) {
@@ -70,7 +68,6 @@ function AppContent() {
     }
   }, [location.pathname, update])
 
-  // Redirigir al login si el token expira
   useEffect(() => {
     api.onUnauthorized = () => {
       update({ view: 'login' })
@@ -78,7 +75,6 @@ function AppContent() {
     return () => { api.onUnauthorized = undefined }
   }, [update])
 
-  // Redirigir si un no-admin intenta acceder al panel
   useEffect(() => {
     if (state.view === 'admin' && user && user.role !== 'ADMIN') {
       update({ view: 'catalog' })
@@ -278,6 +274,7 @@ export default function App() {
   return (
     <AppProvider>
       <AppContent />
+      <Analytics />
     </AppProvider>
   );
 }
