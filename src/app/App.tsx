@@ -12,7 +12,6 @@ import ForgotPassword from "./components/views/auth/ForgotPassword";
 import VerifyCode from "./components/views/auth/VerifyCode";
 import CatalogView from "./components/views/catalog/CatalogView";
 import ToolModal from "./components/views/catalog/ToolModal";
-import LoanFormModal from "./components/views/catalog/LoanFormModal";
 import AccountView from "./components/views/account/AccountView";
 import AdminView from "./components/views/admin/AdminView";
 
@@ -257,8 +256,6 @@ function AppContent() {
       </AnimatePresence>
 
       <ToolModal />
-      <LoanFormModal />
-
       <div style={{ position: "fixed", bottom: 24, right: 24, display: "flex", flexDirection: "column", gap: 8, zIndex: 9999 }}>
         <AnimatePresence>
           {state.toasts.map(t => {

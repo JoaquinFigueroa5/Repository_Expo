@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "motion/react";
 import { useApp } from "../../../context/AppContext";
-import { C, glass, glassDark, glassBlue, STATUS_MAP } from "../../../constants/design";
+import { C, glass, glassDark, glassBlue, glassGreen, inp, STATUS_MAP } from "../../../constants/design";
 import { useUser } from "../../../context/useUser";
 import { fadeUp, slideLeft } from "../../../animate/variants";
 import { Logo } from "../../atoms/Logo";
@@ -9,10 +9,12 @@ import { Badge } from "../../atoms/Badge";
 import { Table, TH, TD } from "../../atoms/Table";
 import { Toggle } from "../../atoms/Toggle";
 import { fmtDate } from "../../../utils";
+import { useMyIncidents, useCreateIncident } from "../../../../hooks/useIncidents";
 
 const ACCOUNT_MENU = [
   { id: "inicio", label: "Inicio", icon: "⊞" },
   { id: "loans", label: "Mis Préstamos", icon: "📋" },
+  { id: "incidents", label: "Incidencias", icon: "⚠️" },
   { id: "profile", label: "Mi Perfil", icon: "👤" },
   { id: "career", label: "Mi Carrera", icon: "🎓" },
   { id: "favorites", label: "Favoritos", icon: "⭐" },
@@ -207,6 +209,113 @@ function AccountFavorites() {
   );
 }
 
+const SEVERITY_COLORS: Record<string, string> = { low: C.blue, medium: C.yellow, high: C.red, critical: "#FF2D55" };
+const SEVERITY_LABELS: Record<string, string> = { low: "Baja", medium: "Media", high: "Alta", critical: "Crítica" };
+const STATUS_INCIDENT: Record<string, { label: string; color: string; bg: string }> = {
+  open: { label: "Abierta", color: C.blue, bg: `${C.blue}18` },
+  in_progress: { label: "En Progreso", color: C.yellow, bg: `${C.yellow}18` },
+  resolved: { label: "Resuelta", color: C.green, bg: `${C.green}18` },
+  closed: { label: "Cerrada", color: C.muted, bg: "rgba(255,255,255,0.06)" },
+};
+
+function AccountIncidents() {
+  const { state, toast } = useApp();
+  const { data: incidents, isLoading } = useMyIncidents();
+  const createIncident = useCreateIncident();
+  const [showForm, setShowForm] = React.useState(false);
+  const [form, setForm] = React.useState({ title: "", description: "", severity: "low" as string });
+
+  const handleSubmit = async () => {
+    if (!form.title.trim() || !form.description.trim()) return;
+    try {
+      await createIncident.mutateAsync({ title: form.title, description: form.description, severity: form.severity });
+      setShowForm(false);
+      setForm({ title: "", description: "", severity: "low" });
+      toast("Incidencia reportada ✅");
+    } catch (err: any) {
+      toast(err?.message || "Error al crear incidencia", "❌", "error");
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>⚠️ Incidencias Reportadas</h2>
+        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          onClick={() => setShowForm(!showForm)}
+          style={{ ...glassBlue, borderRadius: 10, padding: "8px 18px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>
+          {showForm ? "✕ Cerrar" : "+ Nueva Incidencia"}
+        </motion.button>
+      </div>
+
+      {showForm && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ ...glass(0.06), borderRadius: 16, padding: "20px", marginBottom: 20 }}>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.3, display: "block", marginBottom: 5 }}>Título</label>
+            <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Ej. Equipo dañado" style={inp} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.3, display: "block", marginBottom: 5 }}>Descripción</label>
+            <textarea rows={4} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Describe el problema detalladamente..." style={{ ...inp, resize: "vertical" }} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.3, display: "block", marginBottom: 5 }}>Severidad</label>
+            <select value={form.severity} onChange={e => setForm({ ...form, severity: e.target.value })} style={inp}>
+              <option value="low">Baja</option>
+              <option value="medium">Media</option>
+              <option value="high">Alta</option>
+              <option value="critical">Crítica</option>
+            </select>
+          </div>
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            onClick={handleSubmit} disabled={createIncident.isPending}
+            style={{ ...glassBlue, borderRadius: 10, padding: "10px 22px", fontSize: 13.5, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none", opacity: createIncident.isPending ? 0.6 : 1 }}>
+            {createIncident.isPending ? "Enviando..." : "Reportar Incidencia"}
+          </motion.button>
+        </motion.div>
+      )}
+
+      {isLoading ? (
+        <div style={{ textAlign: "center", padding: 40, color: C.muted }}>Cargando...</div>
+      ) : !incidents || incidents.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: C.muted }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>Sin incidencias reportadas</div>
+          <div style={{ fontSize: 12.5, marginTop: 4 }}>No has reportado ninguna incidencia todavía.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {incidents.map(inc => {
+            const sc = STATUS_INCIDENT[inc.status] || STATUS_INCIDENT.open;
+            const sevCol = SEVERITY_COLORS[inc.severity] || C.muted;
+            return (
+              <div key={inc.id} style={{ ...glass(0.05), borderRadius: 14, padding: "14px 16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 700 }}>{inc.title}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${sevCol}18`, color: sevCol, border: `1px solid ${sevCol}28` }}>{SEVERITY_LABELS[inc.severity] || inc.severity}</span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "#94a3b8", lineHeight: 1.6, marginBottom: 4 }}>{inc.description}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>{fmtDate(inc.createdAt)} · {inc.tool ? `Equipo: ${inc.tool.name}` : "Sin equipo asociado"}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: sc.bg, color: sc.color, border: `1px solid ${sc.color}28`, whiteSpace: "nowrap", marginLeft: 12 }}>{sc.label}</span>
+                </div>
+                {inc.resolution && (
+                  <div style={{ ...glass(0.04), borderRadius: 8, padding: "10px 12px", marginTop: 8, fontSize: 12.5, borderLeft: `3px solid ${C.green}`, color: "#94a3b8" }}>
+                    <span style={{ fontWeight: 700, color: C.green, display: "block", marginBottom: 2 }}>Resolución:</span>
+                    {inc.resolution}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AccountSettings() {
   return (
     <div style={{ maxWidth: 520 }}>
@@ -238,7 +347,7 @@ export default function AccountView() {
   const { state, update, logout } = useApp();
   const u = useUser();
   const sMap: Record<string, React.ComponentType> = {
-    inicio: AccountInicio, loans: AccountLoans, profile: AccountProfile,
+    inicio: AccountInicio, loans: AccountLoans, incidents: AccountIncidents, profile: AccountProfile,
     career: AccountCareer, favorites: AccountFavorites, settings: AccountSettings,
   };
   return (

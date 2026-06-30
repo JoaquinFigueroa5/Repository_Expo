@@ -21,16 +21,17 @@ export function useAllRequests(params?: { status?: string }) {
   })
 }
 
+type CreateRequestData = {
+  toolId: number; qty: number; startDate: string; endDate: string; notes?: string
+} | {
+  items: { toolId: number; qty: number; startDate: string; endDate: string }[]
+  notes?: string
+}
+
 export function useCreateRequest() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: {
-      toolId: number
-      qty: number
-      startDate: string
-      endDate: string
-      notes?: string
-    }) => api.post<ApiRequest>('/requests', data),
+    mutationFn: (data: CreateRequestData) => api.post<ApiRequest>('/requests', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['requests'] })
       qc.invalidateQueries({ queryKey: ['tools'] })

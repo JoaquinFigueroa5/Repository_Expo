@@ -21,6 +21,7 @@ export function mapApiToolToTool(t: ApiTool) {
       ? Object.entries(t.specs).map(([k, v]) => ({ k, v: String(v) }))
       : []) as { k: string; v: string }[],
     careers: t.careers as string[],
+    minRole: t.minRole,
   }
 }
 

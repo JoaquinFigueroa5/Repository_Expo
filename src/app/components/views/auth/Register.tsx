@@ -31,19 +31,14 @@ export default function Register() {
       return;
     }
     try {
-      const res = await register.mutateAsync({
+      await register.mutateAsync({
         name: name.trim(),
         email: email.trim(),
         password,
         career: state.selectedCareer,
       });
       update({ view: "verify", verifyEmail: email.trim(), verifyMode: "register", selectedCareer: null });
-      toast(
-        "code" in res && res.code
-          ? `Código de verificación: ${res.code}`
-          : "Cuenta creada. Revisa tu correo para el código de verificación",
-        "📧", "info"
-      );
+      toast("Cuenta creada. Revisa tu correo para el código de verificación", "📧", "info");
     } catch (err: any) {
       toast(err?.message || "Error al registrarse", "❌", "error");
     }

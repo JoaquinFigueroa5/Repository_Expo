@@ -8,6 +8,7 @@ import { Logo } from "../../atoms/Logo";
 import { useTools } from "../../../../hooks/useTools";
 import { useAddFavorite, useRemoveFavorite } from "../../../../hooks/useFavorites";
 import { mapApiToolToTool } from "../../../../lib/mappers";
+import CartModal from "./CartModal";
 
 const HERO_IMAGES = [
   { url: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=1600&h=600&fit=crop&auto=format", label: "Taller de Mecánica" },
@@ -17,7 +18,7 @@ const HERO_IMAGES = [
 ];
 
 export default function CatalogView() {
-  const { state, update, toast, openToolDetail, openLoanForm, user, logout } = useApp();
+  const { state, update, toast, openToolDetail, addToCart, user, logout } = useApp();
   const u = useUser();
   const addFav = useAddFavorite();
   const removeFav = useRemoveFavorite();
@@ -39,6 +40,7 @@ export default function CatalogView() {
   const filtered = state.tools.filter(t => {
     if (state.activeCat && t.cat !== state.activeCat) return false;
     if (state.searchQ && !t.name.toLowerCase().includes(state.searchQ.toLowerCase()) && !t.code.toLowerCase().includes(state.searchQ.toLowerCase())) return false;
+    if (t.minRole && t.minRole !== 'STUDENT' && user?.role === 'STUDENT') return false;
     return true;
   });
 
@@ -119,6 +121,12 @@ export default function CatalogView() {
               <div style={{ width: 22, height: 22, borderRadius: "50%", background: `${C.blue}22`, border: `1px solid ${C.blue}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: C.blue }}>{u.name[0]}</div>
               Mi Cuenta
             </button>
+            {state.cart.length > 0 && (
+              <button onClick={() => update({ cartModalOpen: true })} style={{ ...glass(0.05), borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+                🛒
+                <span style={{ position: "absolute", top: -4, right: -4, background: C.blue, color: "#fff", fontSize: 9, fontWeight: 800, minWidth: 18, height: 18, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid #0a0e1a` }}>{state.cart.reduce((s, c) => s + c.qty, 0)}</span>
+              </button>
+            )}
             {user?.role === "ADMIN" && (
               <button onClick={() => update({ view: "admin" })} style={{ ...glass(0.05), borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: C.muted, cursor: "pointer" }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ verticalAlign: "middle", marginRight: 5 }}><circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M4.93 4.93a10 10 0 0 0 0 14.14" /></svg>
@@ -280,6 +288,11 @@ export default function CatalogView() {
                     <div style={{ position: "absolute", bottom: 8, left: 10, fontSize: 9, color: "#94a3b8", fontWeight: 600, background: "rgba(0,0,0,0.55)", padding: "2px 7px", borderRadius: 6, backdropFilter: "blur(8px)" }}>
                       {CAT_ICONS[tool.cat] || "📦"} {tool.cat}
                     </div>
+                    {tool.minRole && tool.minRole !== 'STUDENT' && (
+                      <div style={{ position: "absolute", bottom: 8, right: 10, fontSize: 8, fontWeight: 700, color: "#F59E0B", background: "rgba(0,0,0,0.6)", padding: "2px 7px", borderRadius: 6, backdropFilter: "blur(8px)", border: "1px solid rgba(245,158,11,0.3)", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                        🔑 Solo Docentes
+                      </div>
+                    )}
                   </div>
                   <div style={{ padding: "12px 13px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                     <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.3, color: C.text }}>{tool.name}</div>
@@ -295,9 +308,9 @@ export default function CatalogView() {
                         </div>
                       </div>
                       <motion.button whileHover={{ scale: tool.available > 0 ? 1.05 : 1 }} whileTap={{ scale: tool.available > 0 ? 0.95 : 1 }}
-                        onClick={e => { e.stopPropagation(); if (tool.available > 0) openLoanForm(tool); else toast("Sin unidades disponibles", "⚠️", "error"); }}
+                        onClick={e => { e.stopPropagation(); if (tool.available > 0) { addToCart(tool); toast(`"${tool.name}" agregado al carrito`, "🛒", "info"); } else toast("Sin unidades disponibles", "⚠️", "error"); }}
                         style={{ ...(tool.available > 0 ? glassBlue : glass(0.05)), borderRadius: 9, padding: "6px 13px", fontSize: 12, fontWeight: 700, color: tool.available > 0 ? "#fff" : C.muted, cursor: tool.available > 0 ? "pointer" : "not-allowed", border: tool.available > 0 ? "none" : "1px solid rgba(255,255,255,0.08)" }}>
-                        {tool.available > 0 ? "Solicitar" : "Sin stock"}
+                        {tool.available > 0 ? "+ Carrito" : "Sin stock"}
                       </motion.button>
                     </div>
                   </div>
@@ -318,6 +331,7 @@ export default function CatalogView() {
           </div>
         </div>
       </footer>
+      <CartModal />
     </div>
   );
 }

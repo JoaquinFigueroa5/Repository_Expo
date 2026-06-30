@@ -81,13 +81,8 @@ export default function VerifyCode() {
     }
     const { api } = await import("../../../../lib/api");
     try {
-      const res = await api.post<{ message: string; code?: string }>("/auth/forgot-password", { email: state.verifyEmail });
-      toast(
-        "code" in res
-          ? `Nuevo código de prueba: ${(res as any).code}`
-          : "Nuevo código enviado a tu correo",
-        "📧", "info"
-      );
+      await api.post<{ message: string }>("/auth/forgot-password", { email: state.verifyEmail });
+      toast("Nuevo código enviado a tu correo", "📧", "info");
     } catch (err: any) {
       toast(err?.message || "Error al reenviar", "❌", "error");
     }

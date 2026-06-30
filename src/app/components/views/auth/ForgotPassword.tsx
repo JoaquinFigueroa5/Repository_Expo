@@ -14,14 +14,9 @@ export default function ForgotPassword() {
       return;
     }
     try {
-      const res = await forgot.mutateAsync({ email: email.trim() });
+      await forgot.mutateAsync({ email: email.trim() });
       update({ view: "verify", verifyEmail: email.trim(), verifyMode: "reset" });
-      toast(
-        res.code
-          ? `Código de prueba: ${res.code}`
-          : "Revisa tu correo para el código de recuperación",
-        "📧", "info"
-      );
+      toast("Revisa tu correo para el código de recuperación", "📧", "info");
     } catch (err: any) {
       toast(err?.message || "Error al enviar código", "❌", "error");
     }

@@ -20,6 +20,7 @@ import { mapApiLoanToLoan } from "../../../../lib/mappers";
 import { useMyLoans } from "../../../../hooks/useLoans";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useAllIncidents, useIncidentStats, useUpdateIncident } from "../../../../hooks/useIncidents";
 
 const ADMIN_PAGES = [
   { id: "panel", label: "Panel de Control", icon: "⊞" },
@@ -30,9 +31,10 @@ const ADMIN_PAGES = [
   { id: "inventario", label: "Inventario", icon: "📦" },
   { id: "agregar", label: "Agregar Equipo", icon: "➕" },
   { id: "carreras", label: "Carreras", icon: "🎓" },
+  { id: "incidencias", label: "Incidencias", icon: "⚠️" },
 ];
 
-const blank: Tool = { id: 0, name: "", cat: "", code: "", brand: "", location: "", totalQty: 1, available: 1, maxDays: 3, desc: "", image: "", status: "available", specs: [{ k: "", v: "" }], careers: [] };
+const blank: Tool = { id: 0, name: "", cat: "", code: "", brand: "", location: "", totalQty: 1, available: 1, maxDays: 3, desc: "", image: "", status: "available", specs: [{ k: "", v: "" }], careers: [], minRole: "STUDENT" };
 
 function AdminPanel() {
   const { state } = useApp();
@@ -463,7 +465,7 @@ function AdminAgregar() {
               </div>
             ))}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
             <div>
               <label style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.4, display: "block", marginBottom: 5 }}>Ubicación</label>
               <input placeholder="Ej. Lab Computación A-1" value={ef.location} onChange={e => update({ editTool: { ...ef, location: e.target.value } })} style={inp} />
@@ -474,6 +476,14 @@ function AdminAgregar() {
                 <option value="available">Disponible</option>
                 <option value="maintenance">Mantenimiento</option>
                 <option value="reserved">Reservado</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.4, display: "block", marginBottom: 5 }}>Visibilidad</label>
+              <select value={ef.minRole || "STUDENT"} onChange={e => update({ editTool: { ...ef, minRole: e.target.value } })} style={inp}>
+                <option value="STUDENT">Todos (Estudiantes y Docentes)</option>
+                <option value="TEACHER">Solo Docentes y Coordinadores</option>
+                <option value="COORDINATOR">Solo Coordinadores</option>
               </select>
             </div>
           </div>
@@ -507,6 +517,7 @@ function AdminAgregar() {
                   image: ef.image || undefined,
                   specs: ef.specs?.reduce((acc, s) => { if (s.k) acc[s.k] = s.v; return acc; }, {} as Record<string, string>),
                   careers: ef.careers,
+                  minRole: ef.minRole || 'STUDENT',
                 };
                 if (isEdit) {
                   await updateTool.mutateAsync({ id: ef.id, ...payload });
@@ -643,12 +654,129 @@ function AdminCarreras() {
   );
 }
 
+const SEVERITY_COLORS: Record<string, string> = { low: C.blue, medium: C.yellow, high: C.red, critical: "#FF2D55" };
+const SEVERITY_LABELS: Record<string, string> = { low: "Baja", medium: "Media", high: "Alta", critical: "Crítica" };
+const INC_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+  open: { label: "Abierta", color: C.blue, bg: `${C.blue}18` },
+  in_progress: { label: "En Progreso", color: C.yellow, bg: `${C.yellow}18` },
+  resolved: { label: "Resuelta", color: C.green, bg: `${C.green}18` },
+  closed: { label: "Cerrada", color: C.muted, bg: "rgba(255,255,255,0.06)" },
+};
+
+function AdminIncidents() {
+  const { toast } = useApp();
+  const { data: incidents, isLoading } = useAllIncidents();
+  const { data: stats } = useIncidentStats();
+  const updateIncident = useUpdateIncident();
+  const [editId, setEditId] = React.useState<number | null>(null);
+  const [editForm, setEditForm] = React.useState({ status: "open", resolution: "" });
+
+  if (isLoading) return <div style={{ textAlign: "center", padding: 40, color: C.muted }}>Cargando...</div>;
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>⚠️ Gestión de Incidencias</h2>
+      {stats && (
+        <div className="admin-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+          {[
+            { label: "Abiertas", val: stats.open, c: C.blue },
+            { label: "En Progreso", val: stats.inProgress, c: C.yellow },
+            { label: "Resueltas", val: stats.resolved, c: C.green },
+            { label: "Total", val: stats.total, c: C.text },
+          ].map(({ label, val, c }) => (
+            <div key={label} style={{ ...glass(0.06), borderRadius: 14, padding: "16px" }}>
+              <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 28, fontWeight: 800, color: c }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!incidents || incidents.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
+          <div style={{ fontSize: 48, marginBottom: 10 }}>✅</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Sin incidencias registradas</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {incidents.map(inc => {
+            const sc = INC_STATUS[inc.status] || INC_STATUS.open;
+            const sevCol = SEVERITY_COLORS[inc.severity] || C.muted;
+            const isEditing = editId === inc.id;
+            return (
+              <div key={inc.id} style={{ ...glass(0.05), borderRadius: 14, padding: "14px 16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700 }}>{inc.title}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${sevCol}18`, color: sevCol, border: `1px solid ${sevCol}28` }}>{SEVERITY_LABELS[inc.severity] || inc.severity}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: sc.bg, color: sc.color, border: `1px solid ${sc.color}28` }}>{sc.label}</span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "#94a3b8", lineHeight: 1.6, marginBottom: 4 }}>{inc.description}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>
+                      {inc.user.name} ({inc.user.career}) · {fmtDate(inc.createdAt)}
+                      {inc.tool ? ` · Equipo: ${inc.tool.name} (#${inc.tool.code})` : ""}
+                    </div>
+                    {inc.resolution && (
+                      <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, background: `${C.green}0C`, borderLeft: `3px solid ${C.green}`, fontSize: 12.5, color: "#94a3b8" }}>
+                        <span style={{ fontWeight: 700, color: C.green }}>Resolución:</span> {inc.resolution}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => { if (isEditing) { setEditId(null); } else { setEditId(inc.id); setEditForm({ status: inc.status, resolution: inc.resolution || "" }); } }}
+                    style={{ ...glass(0.05), borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, color: C.blue, cursor: "pointer", border: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, marginLeft: 12 }}>
+                    {isEditing ? "✕" : "Gestionar"}
+                  </button>
+                </div>
+                {isEditing && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.3, display: "block", marginBottom: 4 }}>Estado</label>
+                        <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} style={inp}>
+                          <option value="open">Abierta</option>
+                          <option value="in_progress">En Progreso</option>
+                          <option value="resolved">Resuelta</option>
+                          <option value="closed">Cerrada</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.3, display: "block", marginBottom: 4 }}>Acción</label>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                            onClick={async () => {
+                              await updateIncident.mutateAsync({ id: inc.id, ...editForm });
+                              setEditId(null);
+                              toast("Incidencia actualizada ✅");
+                            }}
+                            style={{ ...glassBlue, borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none", flex: 1 }}>
+                            Guardar
+                          </motion.button>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.3, display: "block", marginBottom: 4 }}>Resolución</label>
+                      <textarea rows={3} value={editForm.resolution} onChange={e => setEditForm({ ...editForm, resolution: e.target.value })} placeholder="Describe cómo se resolvió..." style={{ ...inp, resize: "vertical", width: "100%" }} />
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminView() {
   const { state, update } = useApp();
   const pageMap: Record<string, React.ComponentType> = {
     panel: AdminPanel, estadisticas: AdminEstadisticas, reportes: AdminReportes,
     solicitudes: AdminSolicitudes, activos: AdminActivos,
     inventario: AdminInventario, agregar: AdminAgregar, carreras: AdminCarreras,
+    incidencias: AdminIncidents,
   };
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>

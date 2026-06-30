@@ -5,12 +5,18 @@ export interface Tool {
   id: number; name: string; cat: string; code: string; desc: string;
   brand: string; location: string; totalQty: number; available: number;
   status: ToolStatus; image: string; maxDays: number;
-  specs: { k: string; v: string }[]; careers: string[];
+  specs: { k: string; v: string }[]; careers: string[]; minRole?: string;
 }
 
 export interface Loan {
   id: number; toolId: number; qty: number;
   loanDate: string; dueDate: string; returnDate: string | null; status: LoanStatus;
+}
+
+export interface CartItem {
+  toolId: number;
+  tool: Tool;
+  qty: number;
 }
 
 export interface AdminReq {
@@ -76,6 +82,7 @@ export interface ApiTool {
   maxDays: number
   specs: Record<string, string> | null
   careers: string[]
+  minRole?: string
   categoryId: number | null
   category: Career | null
   createdAt: string
@@ -265,6 +272,7 @@ export interface CreateToolInput {
   maxDays?: number
   specs?: Record<string, string>
   careers: string[]
+  minRole?: string
   categoryId?: number
 }
 

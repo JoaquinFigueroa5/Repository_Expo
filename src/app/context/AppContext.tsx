@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from "react";
-import type { Tool, Loan, ViewType, VerifyMode, LoanForm, ToastItem, NewCareerForm, AdminReq, Career, ApiUser } from "../types";
+import type { Tool, Loan, ViewType, VerifyMode, LoanForm, ToastItem, NewCareerForm, AdminReq, Career, ApiUser, CartItem } from "../types";
 import { C } from "../constants/design";
 import { today } from "../utils";
 import { useMe, useLogout } from "../../hooks/useAuth";
@@ -40,6 +40,8 @@ interface AppState {
   editTool: Tool | null;
   newCareerForm: NewCareerForm;
   newCatName: string;
+  cart: CartItem[];
+  cartModalOpen: boolean;
 }
 
 interface AppContextValue {
@@ -49,12 +51,23 @@ interface AppContextValue {
   getTool: (id: number) => Tool | undefined;
   openToolDetail: (t: Tool) => void;
   openLoanForm: (t: Tool) => void;
+  addToCart: (tool: Tool) => void;
+  removeFromCart: (toolId: number) => void;
+  updateCartItem: (toolId: number, patch: Partial<CartItem>) => void;
+  clearCart: () => void;
   user: ApiUser | undefined;
   isAuth: boolean;
   logout: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
+
+function loadCart(): CartItem[] {
+  try {
+    const saved = localStorage.getItem('rema_cart')
+    return saved ? JSON.parse(saved) : []
+  } catch { return [] }
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>({
@@ -86,6 +99,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     editTool: null,
     newCareerForm: { name: "", icon: "🎓", color: C.blue },
     newCatName: "",
+    cart: loadCart(),
+    cartModalOpen: false,
   });
 
   const { data: user } = useMe();
@@ -106,8 +121,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem('rema_cart', JSON.stringify(state.cart))
+  }, [state.cart])
+
+  const cartRef = useRef(state.cart)
+  useEffect(() => {
     const patch: Partial<AppState> = {};
-    if (apiTools) patch.tools = apiTools.map(mapApiToolToTool) as Tool[];
+    if (apiTools) {
+      const tools = apiTools.map(mapApiToolToTool) as Tool[]
+      patch.tools = tools
+      const toolMap = new Map(tools.map(t => [t.id, t]))
+      const refreshed = cartRef.current.map(c => {
+        const fresh = toolMap.get(c.toolId)
+        return fresh ? { ...c, tool: fresh } : c
+      })
+      patch.cart = refreshed
+    }
     if (apiMyLoans) patch.loans = apiMyLoans.map(mapApiLoanToLoan) as Loan[];
     if (apiMyFavorites) patch.favorites = apiMyFavorites.map(t => t.id);
     if (apiAdminCategories) patch.categories = apiAdminCategories.map(c => c.name);
@@ -115,6 +144,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (apiRequests) patch.adminReqs = apiRequests.map(mapApiRequestToAdminReq) as AdminReq[];
     if (Object.keys(patch).length > 0) update(patch);
   }, [apiTools, apiMyLoans, apiMyFavorites, apiAdminCategories, apiAdminCareers, apiRequests, update]);
+
+  useEffect(() => { cartRef.current = state.cart }, [state.cart])
 
   const toast: AppContextValue["toast"] = useCallback((msg, icon = "✅", type = "success") => {
     const id = ++toastId.current;
@@ -144,8 +175,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const addToCart: AppContextValue["addToCart"] = (tool: Tool) => {
+    setState(prev => {
+      const existing = prev.cart.find(c => c.toolId === tool.id);
+      if (existing) {
+        return { ...prev, cart: prev.cart.map(c => c.toolId === tool.id ? { ...c, qty: Math.min(c.qty + 1, tool.available) } : c) };
+      }
+      return { ...prev, cart: [...prev.cart, { toolId: tool.id, tool, qty: 1 }] };
+    });
+  };
+
+  const removeFromCart: AppContextValue["removeFromCart"] = (toolId: number) => {
+    setState(prev => ({ ...prev, cart: prev.cart.filter(c => c.toolId !== toolId) }));
+  };
+
+  const updateCartItem: AppContextValue["updateCartItem"] = (toolId: number, patch: Partial<CartItem>) => {
+    setState(prev => ({ ...prev, cart: prev.cart.map(c => c.toolId === toolId ? { ...c, ...patch } : c) }));
+  };
+
+  const clearCart: AppContextValue["clearCart"] = () => {
+    localStorage.removeItem('rema_cart')
+    setState(prev => ({ ...prev, cart: [] }));
+  };
+
   return (
-    <AppContext.Provider value={{ state, update, toast, getTool, openToolDetail, openLoanForm, user, isAuth, logout }}>
+    <AppContext.Provider value={{ state, update, toast, getTool, openToolDetail, openLoanForm, addToCart, removeFromCart, updateCartItem, clearCart, user, isAuth, logout }}>
       {children}
     </AppContext.Provider>
   );
