@@ -1,12 +1,15 @@
 import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../../../context/AppContext";
 import { C, glass, glassDark, glassBlue, inp } from "../../../constants/design";
-import { CURRENT_USER } from "../../../data/user";
+import { useUser } from "../../../context/useUser";
 import { backdropVariant, scaleIn, fadeUp } from "../../../animate/variants";
 import { today, fmtDate } from "../../../utils";
+import { useCreateRequest } from "../../../../hooks/useRequests";
 
 export default function LoanFormModal() {
-  const { state, update, toast, submitLoan } = useApp();
+  const { state, update, toast } = useApp();
+  const u = useUser();
+  const createRequest = useCreateRequest();
   const t = state.loanFormTool;
   if (!t) return null;
   const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + t.maxDays);
@@ -50,7 +53,7 @@ export default function LoanFormModal() {
                   <img src={t.image} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   <div><div style={{ fontWeight: 700, fontSize: 15 }}>{t.name}</div><div style={{ fontSize: 12, color: C.muted }}>{t.brand} · {t.code}</div></div>
                 </div>
-                {[{ l: "Cantidad", v: `${state.loanForm.qty} unidad(es)` }, { l: "Fecha préstamo", v: fmtDate(state.loanForm.startDate) }, { l: "Devolución", v: fmtDate(state.loanForm.endDate) }, { l: "Solicitante", v: CURRENT_USER.name }, { l: "Carrera", v: CURRENT_USER.career }].map(({ l, v }) => (
+                {[{ l: "Cantidad", v: `${state.loanForm.qty} unidad(es)` }, { l: "Fecha préstamo", v: fmtDate(state.loanForm.startDate) }, { l: "Devolución", v: fmtDate(state.loanForm.endDate) }, { l: "Solicitante", v: u.name }, { l: "Carrera", v: u.career }].map(({ l, v }) => (
                   <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 13 }}>
                     <span style={{ color: C.muted }}>{l}</span><span style={{ fontWeight: 600 }}>{v}</span>
                   </div>
@@ -58,7 +61,23 @@ export default function LoanFormModal() {
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={() => update({ loanStep: "form" })} style={{ ...glass(0.06), flex: 1, borderRadius: 10, padding: "11px", fontSize: 13, fontWeight: 600, color: C.muted, cursor: "pointer", border: "1px solid rgba(255,255,255,0.07)" }}>← Editar</motion.button>
-                <motion.button whileHover={{ scale: 1.02, boxShadow: "0 8px 28px rgba(10,132,255,0.4)" }} whileTap={{ scale: 0.97 }} onClick={submitLoan} style={{ ...glassBlue, flex: 2, borderRadius: 10, padding: "11px", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>Confirmar →</motion.button>
+                <motion.button whileHover={{ scale: 1.02, boxShadow: "0 8px 28px rgba(10,132,255,0.4)" }} whileTap={{ scale: 0.97 }}
+                  onClick={async () => {
+                    try {
+                      await createRequest.mutateAsync({
+                        toolId: t.id,
+                        qty: state.loanForm.qty,
+                        startDate: state.loanForm.startDate,
+                        endDate: state.loanForm.endDate,
+                        notes: state.loanForm.notes || undefined,
+                      });
+                      update({ loanStep: "success" });
+                    } catch (err: any) {
+                      toast(err?.message || "Error al crear solicitud", "❌", "error");
+                    }
+                  }}
+                  style={{ ...glassBlue, flex: 2, borderRadius: 10, padding: "11px", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none", opacity: createRequest.isPending ? 0.7 : 1 }}>
+                  {createRequest.isPending ? "Enviando..." : "Confirmar →"}</motion.button>
               </div>
             </motion.div>
           ) : (
@@ -74,7 +93,7 @@ export default function LoanFormModal() {
                   <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>{t.available} disponibles · Máx. {t.maxDays} días</div>
                 </div>
               </div>
-              {!t.careers.includes(CURRENT_USER.career) && (
+              {!t.careers.includes(u.career) && (
                 <div style={{ ...glass(0.05), borderRadius: 10, padding: "10px 14px", marginBottom: 14, background: "rgba(255,69,58,0.07)", border: "1px solid rgba(255,69,58,0.2)", fontSize: 12.5, color: C.red, display: "flex", gap: 8, alignItems: "center" }}>
                   ⚠️ Tu carrera no está autorizada para este equipo.
                 </div>

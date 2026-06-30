@@ -1,13 +1,53 @@
+import { useState } from "react";
 import { motion } from "motion/react";
 import { useApp } from "../../../context/AppContext";
+import { useRegister } from "../../../../hooks/useAuth";
 
 export default function Register() {
-  const { state, update } = useApp();
+  const { state, update, toast } = useApp();
+  const register = useRegister();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+
   const careers = [
-    { id: "comp", label: "Computación e Informática", icon: "💻", color: "#2563EB" },
-    { id: "mec",  label: "Mecánica Automotriz",       icon: "⚙️", color: "#FF9F0A" },
-    { id: "elec", label: "Electricidad y Electrónica", icon: "⚡", color: "#FFD60A" },
+    { id: "computacion", label: "Computación e Informática", icon: "💻", color: "#2563EB" },
+    { id: "mecanica",    label: "Mecánica Automotriz",       icon: "⚙️", color: "#FF9F0A" },
+    { id: "electricidad", label: "Electricidad y Electrónica", icon: "⚡", color: "#FFD60A" },
   ];
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !email.trim() || !password.trim() || !confirmPass.trim() || !state.selectedCareer) {
+      toast("Completa todos los campos", "⚠️", "error");
+      return;
+    }
+    if (password !== confirmPass) {
+      toast("Las contraseñas no coinciden", "❌", "error");
+      return;
+    }
+    if (password.length < 6) {
+      toast("La contraseña debe tener al menos 6 caracteres", "⚠️", "error");
+      return;
+    }
+    try {
+      const res = await register.mutateAsync({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        career: state.selectedCareer,
+      });
+      update({ view: "verify", verifyEmail: email.trim(), verifyMode: "register", selectedCareer: null });
+      toast(
+        "code" in res && res.code
+          ? `Código de verificación: ${res.code}`
+          : "Cuenta creada. Revisa tu correo para el código de verificación",
+        "📧", "info"
+      );
+    } catch (err: any) {
+      toast(err?.message || "Error al registrarse", "❌", "error");
+    }
+  };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter','Plus Jakarta Sans',sans-serif", position: "relative", overflow: "hidden", padding: "40px 20px" }}>
@@ -29,18 +69,18 @@ export default function Register() {
 
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(125,211,252,0.7)", letterSpacing: "0.07em", textTransform: "uppercase" as const, marginBottom: 6 }}>Nombre de usuario</label>
-          <input placeholder="ej: carlos.garcia" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid rgba(37,99,235,0.3)", fontSize: 14, color: "#fff", outline: "none", background: "rgba(255,255,255,0.06)", boxSizing: "border-box" as const }} />
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="ej: carlos.garcia" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid rgba(37,99,235,0.3)", fontSize: 14, color: "#fff", outline: "none", background: "rgba(255,255,255,0.06)", boxSizing: "border-box" as const }} />
         </div>
 
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(125,211,252,0.7)", letterSpacing: "0.07em", textTransform: "uppercase" as const, marginBottom: 6 }}>Correo institucional</label>
-          <input placeholder="correo@instituto.edu.gt" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid rgba(37,99,235,0.3)", fontSize: 14, color: "#fff", outline: "none", background: "rgba(255,255,255,0.06)", boxSizing: "border-box" as const }} />
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@instituto.edu.gt" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid rgba(37,99,235,0.3)", fontSize: 14, color: "#fff", outline: "none", background: "rgba(255,255,255,0.06)", boxSizing: "border-box" as const }} />
         </div>
 
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(125,211,252,0.7)", letterSpacing: "0.07em", textTransform: "uppercase" as const, marginBottom: 6 }}>Contraseña</label>
           <div style={{ position: "relative" as const }}>
-            <input type={state.showRegPass ? "text" : "password"} placeholder="••••••••" style={{ width: "100%", padding: "10px 42px 10px 14px", borderRadius: 10, border: "1.5px solid rgba(37,99,235,0.3)", fontSize: 14, color: "#fff", outline: "none", background: "rgba(255,255,255,0.06)", boxSizing: "border-box" as const }} />
+            <input type={state.showRegPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={{ width: "100%", padding: "10px 42px 10px 14px", borderRadius: 10, border: "1.5px solid rgba(37,99,235,0.3)", fontSize: 14, color: "#fff", outline: "none", background: "rgba(255,255,255,0.06)", boxSizing: "border-box" as const }} />
             <button onClick={() => update({ showRegPass: !state.showRegPass })} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(125,211,252,0.6)", fontSize: 15, padding: 0 }}>{state.showRegPass ? "🙈" : "👁"}</button>
           </div>
         </div>
@@ -48,7 +88,7 @@ export default function Register() {
         <div style={{ marginBottom: 22 }}>
           <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(125,211,252,0.7)", letterSpacing: "0.07em", textTransform: "uppercase" as const, marginBottom: 6 }}>Confirmar contraseña</label>
           <div style={{ position: "relative" as const }}>
-            <input type={state.showRegPass2 ? "text" : "password"} placeholder="••••••••" style={{ width: "100%", padding: "10px 42px 10px 14px", borderRadius: 10, border: "1.5px solid rgba(37,99,235,0.3)", fontSize: 14, color: "#fff", outline: "none", background: "rgba(255,255,255,0.06)", boxSizing: "border-box" as const }} />
+            <input type={state.showRegPass2 ? "text" : "password"} value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="••••••••" style={{ width: "100%", padding: "10px 42px 10px 14px", borderRadius: 10, border: "1.5px solid rgba(37,99,235,0.3)", fontSize: 14, color: "#fff", outline: "none", background: "rgba(255,255,255,0.06)", boxSizing: "border-box" as const }} />
             <button onClick={() => update({ showRegPass2: !state.showRegPass2 })} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(125,211,252,0.6)", fontSize: 15, padding: 0 }}>{state.showRegPass2 ? "🙈" : "👁"}</button>
           </div>
         </div>
@@ -77,9 +117,9 @@ export default function Register() {
         </div>
 
         <motion.button whileHover={{ scale: 1.02, boxShadow: "0 10px 32px rgba(37,99,235,0.5)" }} whileTap={{ scale: 0.97 }}
-          onClick={() => update({ view: "verify" })}
-          style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#2563EB,#1d4ed8)", color: "#fff", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 20px rgba(37,99,235,0.4)" }}>
-          Continua <span style={{ fontSize: 18 }}>→</span>
+          onClick={handleSubmit} disabled={register.isPending}
+          style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#2563EB,#1d4ed8)", color: "#fff", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 20px rgba(37,99,235,0.4)", opacity: register.isPending ? 0.7 : 1 }}>
+          {register.isPending ? "Creando cuenta..." : <>Continua <span style={{ fontSize: 18 }}>→</span></>}
         </motion.button>
       </motion.div>
     </div>

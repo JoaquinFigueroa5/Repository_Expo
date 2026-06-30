@@ -1,11 +1,15 @@
-import { createContext, useContext, useState, useRef, useCallback, type ReactNode } from "react";
-import type { Tool, Loan, ViewType, LoanForm, ToastItem, NewCareerForm, AdminReq, Career } from "../types";
-import { TOOLS0 } from "../data/tools";
-import { LOANS0, ADMIN_REQS0 } from "../data/loans";
-import { CURRENT_USER, CAREERS_DEFAULT } from "../data/user";
-import { CATEGORIES_DEFAULT } from "../data/categories";
+import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from "react";
+import type { Tool, Loan, ViewType, VerifyMode, LoanForm, ToastItem, NewCareerForm, AdminReq, Career, ApiUser } from "../types";
 import { C } from "../constants/design";
 import { today } from "../utils";
+import { useMe, useLogout } from "../../hooks/useAuth";
+import { useTools } from "../../hooks/useTools";
+import { useMyLoans } from "../../hooks/useLoans";
+import { useMyFavorites } from "../../hooks/useFavorites";
+import { useAdminCategories, useAdminCareers } from "../../hooks/useAdmin";
+import { useAllRequests } from "../../hooks/useRequests";
+import { isAuthenticated } from "../../lib/auth";
+import { mapApiToolToTool, mapApiLoanToLoan, mapApiRequestToAdminReq, mapApiCareerToCareer } from "../../lib/mappers";
 
 interface AppState {
   view: ViewType;
@@ -14,6 +18,8 @@ interface AppState {
   showRegPass2: boolean;
   selectedCareer: string | null;
   verifyCode: string[];
+  verifyEmail: string;
+  verifyMode: VerifyMode;
   tools: Tool[];
   loans: Loan[];
   adminReqs: AdminReq[];
@@ -43,7 +49,9 @@ interface AppContextValue {
   getTool: (id: number) => Tool | undefined;
   openToolDetail: (t: Tool) => void;
   openLoanForm: (t: Tool) => void;
-  submitLoan: () => void;
+  user: ApiUser | undefined;
+  isAuth: boolean;
+  logout: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -56,11 +64,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     showRegPass2: false,
     selectedCareer: null,
     verifyCode: ["", "", "", "", "", ""],
-    tools: TOOLS0,
-    loans: LOANS0,
-    adminReqs: ADMIN_REQS0,
-    categories: CATEGORIES_DEFAULT,
-    careers: CAREERS_DEFAULT,
+    verifyEmail: "",
+    verifyMode: "reset",
+    tools: [],
+    loans: [],
+    adminReqs: [],
+    categories: [],
+    careers: [],
     activeCat: null,
     searchQ: "",
     searchFocused: false,
@@ -68,7 +78,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loanFormTool: null,
     accountSection: "inicio",
     adminPage: "panel",
-    favorites: [3, 7],
+    favorites: [],
     viewedTools: [1, 3, 8],
     toasts: [],
     loanForm: { qty: 1, startDate: today(), endDate: "", notes: "" },
@@ -78,13 +88,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     newCatName: "",
   });
 
+  const { data: user } = useMe();
+  const isAuth = isAuthenticated();
+  const logout = useLogout();
+
+  const { data: apiTools } = useTools();
+  const { data: apiMyLoans } = useMyLoans();
+  const { data: apiMyFavorites } = useMyFavorites();
+  const { data: apiAdminCategories } = useAdminCategories();
+  const { data: apiAdminCareers } = useAdminCareers();
+  const { data: apiRequests } = useAllRequests();
+
   const toastId = useRef(0);
-  const nextLoanId = useRef(20);
-  const nextReqId = useRef(20);
 
   const update = useCallback((partial: Partial<AppState>) => {
     setState(prev => ({ ...prev, ...partial }));
   }, []);
+
+  useEffect(() => {
+    const patch: Partial<AppState> = {};
+    if (apiTools) patch.tools = apiTools.map(mapApiToolToTool) as Tool[];
+    if (apiMyLoans) patch.loans = apiMyLoans.map(mapApiLoanToLoan) as Loan[];
+    if (apiMyFavorites) patch.favorites = apiMyFavorites.map(t => t.id);
+    if (apiAdminCategories) patch.categories = apiAdminCategories.map(c => c.name);
+    if (apiAdminCareers) patch.careers = apiAdminCareers.map(mapApiCareerToCareer) as Career[];
+    if (apiRequests) patch.adminReqs = apiRequests.map(mapApiRequestToAdminReq) as AdminReq[];
+    if (Object.keys(patch).length > 0) update(patch);
+  }, [apiTools, apiMyLoans, apiMyFavorites, apiAdminCategories, apiAdminCareers, apiRequests, update]);
 
   const toast: AppContextValue["toast"] = useCallback((msg, icon = "✅", type = "success") => {
     const id = ++toastId.current;
@@ -114,29 +144,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const submitLoan: AppContextValue["submitLoan"] = () => {
-    let toolName = "";
-    setState(prev => {
-      const tool = prev.loanFormTool;
-      if (!tool) return prev;
-      toolName = tool.name;
-      const newLoan: Loan = {
-        id: nextLoanId.current++, toolId: tool.id, qty: prev.loanForm.qty,
-        loanDate: prev.loanForm.startDate, dueDate: prev.loanForm.endDate,
-        returnDate: null, status: "active",
-      };
-      const updatedTools = (prev.tools as Tool[]).map(t =>
-        t.id === tool.id
-          ? { ...t, available: Math.max(0, t.available - prev.loanForm.qty), status: (t.available - prev.loanForm.qty <= 0 ? "in_use" : t.status) as Tool["status"] }
-          : t
-      ) as Tool[];
-      return { ...prev, loans: [...prev.loans, newLoan], tools: updatedTools, loanStep: "success" };
-    });
-    if (toolName) toast(`Préstamo de "${toolName}" registrado`);
-  };
-
   return (
-    <AppContext.Provider value={{ state, update, toast, getTool, openToolDetail, openLoanForm, submitLoan }}>
+    <AppContext.Provider value={{ state, update, toast, getTool, openToolDetail, openLoanForm, user, isAuth, logout }}>
       {children}
     </AppContext.Provider>
   );

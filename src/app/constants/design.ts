@@ -41,6 +41,18 @@ export const inp: CSSProperties = {
   outline: "none", color: "#E8EEFF", width: "100%",
 };
 
+export const CAT_ICONS: Record<string, string> = {
+  Computación: "💻",
+  Mecánica: "⚙️",
+  Electricidad: "⚡",
+};
+
+export const CAT_COLORS: Record<string, string> = {
+  Computación: "#0A84FF",
+  Mecánica: "#FF9F0A",
+  Electricidad: "#FFD60A",
+};
+
 export const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   available:   { label: "Disponible",    color: C.green,  bg: "rgba(48,209,88,0.12)" },
   in_use:      { label: "En Uso",        color: C.red,    bg: "rgba(255,69,58,0.12)" },

@@ -1,14 +1,21 @@
 import { motion } from "motion/react";
 import { useApp } from "../../../context/AppContext";
-import { C, glass, glassDark, glassBlue, glassGreen, inp, STATUS_MAP } from "../../../constants/design";
-import { CAT_ICONS, CAT_COLORS } from "../../../data/categories";
-import { CURRENT_USER } from "../../../data/user";
+import { C, glass, glassDark, glassBlue, glassGreen, inp, STATUS_MAP, CAT_ICONS, CAT_COLORS } from "../../../constants/design";
 import { fadeUp, slideLeft } from "../../../animate/variants";
 import type { Tool } from "../../../types";
 import { Logo } from "../../atoms/Logo";
 import { Badge } from "../../atoms/Badge";
 import { Table, TH, TD } from "../../atoms/Table";
 import { today, fmtDate } from "../../../utils";
+import { useAdminStats, useAdminCareers, useAdminCategories, useCreateCareer, useDeleteCareer } from "../../../../hooks/useAdmin";
+import { useTools } from "../../../../hooks/useTools";
+import { useAllLoans } from "../../../../hooks/useLoans";
+import { useAllRequests, useApproveRequest, useRejectRequest } from "../../../../hooks/useRequests";
+import { useTopTools, useLoansByMonth, useDelays, useActiveUsers } from "../../../../hooks/useReports";
+import { useCreateTool, useUpdateTool, useDeleteTool } from "../../../../hooks/useTools";
+import { useReturnLoan } from "../../../../hooks/useLoans";
+import { useMyFavorites } from "../../../../hooks/useFavorites";
+import { useMyLoans } from "../../../../hooks/useLoans";
 
 const ADMIN_PAGES = [
   { id: "panel", label: "Panel de Control", icon: "⊞" },
@@ -25,10 +32,11 @@ const blank: Tool = { id: 0, name: "", cat: "", code: "", brand: "", location: "
 
 function AdminPanel() {
   const { state } = useApp();
-  const available = state.tools.filter(t => t.status === "available").length;
-  const inUse = state.tools.filter(t => t.status === "in_use").length;
-  const maintenance = state.tools.filter(t => t.status === "maintenance").length;
-  const pending = state.adminReqs.filter(r => r.status === "pending").length;
+  const { data: stats } = useAdminStats();
+  const available = stats?.available ?? state.tools.filter(t => t.status === "available").length;
+  const inUse = stats?.inUse ?? state.tools.filter(t => t.status === "in_use").length;
+  const maintenance = stats?.maintenance ?? state.tools.filter(t => t.status === "maintenance").length;
+  const pending = stats?.pendingReqs ?? state.adminReqs.filter(r => r.status === "pending").length;
   return (
     <div>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Panel de Control</h2>
@@ -37,9 +45,9 @@ function AdminPanel() {
           { label: "Disponibles", val: available, c: C.green, bg: `${C.green}12` },
           { label: "En Uso", val: inUse, c: C.red, bg: `${C.red}10` },
           { label: "Mantenimiento", val: maintenance, c: C.muted, bg: "rgba(107,127,168,0.1)" },
-          { label: "Total Equipos", val: state.tools.length, c: C.blue, bg: `${C.blue}12` },
+          { label: "Total Equipos", val: stats?.totalTools ?? state.tools.length, c: C.blue, bg: `${C.blue}12` },
           { label: "Solicitudes Pendientes", val: pending, c: C.yellow, bg: `${C.yellow}10` },
-          { label: "Préstamos Activos", val: state.loans.filter(l => l.status === "active").length, c: C.orange, bg: `${C.orange}10` },
+          { label: "Préstamos Activos", val: stats?.activeLoans ?? state.loans.filter(l => l.status === "active").length, c: C.orange, bg: `${C.orange}10` },
         ].map(({ label, val, c, bg }, i) => (
           <motion.div key={label} className="glow-card" variants={fadeUp} custom={i} initial="hidden" animate="visible"
             whileHover={{ scale: 1.02 }}
@@ -73,11 +81,14 @@ function AdminPanel() {
 
 function AdminEstadisticas() {
   const { state } = useApp();
+  const { data: stats } = useAdminStats();
+  const { data: allLoans } = useAllLoans();
+  const loans = allLoans ?? state.loans;
   const byCat = state.categories.map(c => ({ cat: c, total: state.tools.filter(t => t.cat === c).length, avail: state.tools.filter(t => t.cat === c && t.status === "available").length }));
   const maxTotal = Math.max(...byCat.map(b => b.total), 1);
-  const totalLoans = state.loans.length;
-  const returnRate = totalLoans > 0 ? Math.round((state.loans.filter(l => l.status === "returned").length / totalLoans) * 100) : 0;
-  const overdueRate = totalLoans > 0 ? Math.round((state.loans.filter(l => l.status === "overdue").length / totalLoans) * 100) : 0;
+  const totalLoans = loans.length;
+  const returnRate = totalLoans > 0 ? Math.round((loans.filter((l: any) => l.status === "returned").length / totalLoans) * 100) : 0;
+  const overdueRate = totalLoans > 0 ? Math.round((loans.filter((l: any) => l.status === "overdue").length / totalLoans) * 100) : 0;
   return (
     <div>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Estadísticas</h2>
@@ -139,13 +150,15 @@ function AdminEstadisticas() {
 
 function AdminReportes() {
   const { state, toast } = useApp();
-  const toolUsage = state.tools.map(t => ({ tool: t, count: state.loans.filter(l => l.toolId === t.id).length })).sort((a, b) => b.count - a.count).slice(0, 5);
+  const { data: topTools } = useTopTools();
+  const loanCounts = topTools?.reduce((acc: Record<string, number>, t: any) => { acc[t.name] = t.count; return acc; }, {}) ?? {};
+  const toolUsage = state.tools.map(t => ({ tool: t, count: loanCounts[t.name] ?? state.loans.filter(l => l.toolId === t.id).length })).sort((a, b) => b.count - a.count).slice(0, 5);
   return (
     <div>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Reportes</h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
         {[
-          { label: "Préstamos este mes", val: state.loans.filter(l => l.loanDate.startsWith("2026-06")).length, c: C.blue },
+          { label: "Préstamos este mes", val: state.loans.filter(l => l.loanDate?.startsWith("2026-06")).length, c: C.blue },
           { label: "Devoluciones pendientes", val: state.loans.filter(l => l.status === "active").length, c: C.orange },
           { label: "Equipos sin actividad", val: state.tools.filter(t => !state.loans.some(l => l.toolId === t.id)).length, c: C.muted },
         ].map(({ label, val, c }) => (
@@ -203,7 +216,9 @@ function AdminReportes() {
 }
 
 function AdminSolicitudes() {
-  const { state, update, toast } = useApp();
+  const { state, toast } = useApp();
+  const approve = useApproveRequest();
+  const reject = useRejectRequest();
   return (
     <div>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Solicitudes</h2>
@@ -224,8 +239,8 @@ function AdminSolicitudes() {
                   <TD><Badge s={r.status} /></TD>
                   <TD>{r.status === "pending" && (
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => { update({ adminReqs: state.adminReqs.map(x => x.id === r.id ? { ...x, status: "approved" as const } : x) }); toast(`Solicitud de ${r.student} aprobada`); }} style={{ ...glassGreen, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>Aprobar</button>
-                      <button onClick={() => { update({ adminReqs: state.adminReqs.map(x => x.id === r.id ? { ...x, status: "rejected" as const } : x) }); toast("Solicitud rechazada", "❌", "error"); }} style={{ ...glass(0.05), borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: C.red, cursor: "pointer", border: `1px solid ${C.red}28` }}>Rechazar</button>
+                      <button onClick={() => { approve.mutate(r.id); toast(`Solicitud de ${r.student} aprobada`); }} style={{ ...glassGreen, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>Aprobar</button>
+                      <button onClick={() => { reject.mutate({ id: r.id, comment: "" }); toast("Solicitud rechazada", "❌", "error"); }} style={{ ...glass(0.05), borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: C.red, cursor: "pointer", border: `1px solid ${C.red}28` }}>Rechazar</button>
                     </div>
                   )}</TD>
                 </tr>
@@ -239,7 +254,8 @@ function AdminSolicitudes() {
 }
 
 function AdminActivos() {
-  const { state, update, toast } = useApp();
+  const { state, toast } = useApp();
+  const returnLoan = useReturnLoan();
   return (
     <div>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Préstamos Activos</h2>
@@ -259,7 +275,7 @@ function AdminActivos() {
                   <TD><span style={{ fontSize: 11, color: C.blue, fontWeight: 600 }}>{t?.code}</span></TD>
                   <TD><span style={{ color: dl < 0 ? C.red : dl <= 1 ? C.orange : "#94a3b8", fontSize: 12.5 }}>{fmtDate(l.dueDate)} {dl < 0 ? `(${Math.abs(dl)}d atraso)` : dl === 0 ? "(Hoy)" : ""}</span></TD>
                   <TD><Badge s={l.status} /></TD>
-                  <TD><button onClick={() => { update({ loans: state.loans.map(x => x.id === l.id ? { ...x, status: "returned" as const, returnDate: today() } : x), tools: state.tools.map(x => x.id === l.toolId ? { ...x, available: Math.min(x.totalQty, x.available + l.qty), status: "available" as const } : x) }); toast("Devolución registrada ✅"); }}
+                  <TD><button onClick={() => { returnLoan.mutate({ id: l.id, returnDate: today() }); toast("Devolución registrada ✅"); }}
                     style={{ ...glass(0.06), borderRadius: 8, padding: "6px 13px", fontSize: 12, fontWeight: 700, color: C.green, cursor: "pointer", border: `1px solid ${C.green}28` }}>
                     Registrar Devolución
                   </button></TD>
@@ -275,6 +291,7 @@ function AdminActivos() {
 
 function AdminInventario() {
   const { state, update, toast } = useApp();
+  const deleteTool = useDeleteTool();
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -307,7 +324,7 @@ function AdminInventario() {
                 </TD>
                 <TD>
                   <button onClick={() => { update({ editTool: t, adminPage: "agregar" }); }} style={{ background: "none", border: "none", fontSize: 15, cursor: "pointer", color: C.muted, padding: "3px 6px", borderRadius: 6 }}>✏️</button>
-                  <button onClick={() => { if (!confirm(`¿Eliminar "${t.name}"?`)) return; update({ tools: state.tools.filter(x => x.id !== t.id) }); toast("Equipo eliminado", "🗑️", "info"); }} style={{ background: "none", border: "none", fontSize: 15, cursor: "pointer", color: C.red, padding: "3px 6px", borderRadius: 6 }}>🗑️</button>
+                  <button onClick={() => { if (!confirm(`¿Eliminar "${t.name}"?`)) return; deleteTool.mutate(t.id); toast("Equipo eliminado", "🗑️", "info"); }} style={{ background: "none", border: "none", fontSize: 15, cursor: "pointer", color: C.red, padding: "3px 6px", borderRadius: 6 }}>🗑️</button>
                 </TD>
               </tr>
             ))}
@@ -320,6 +337,8 @@ function AdminInventario() {
 
 function AdminAgregar() {
   const { state, update, toast } = useApp();
+  const createTool = useCreateTool();
+  const updateTool = useUpdateTool();
   const ef = state.editTool || blank;
   const isEdit = ef.id > 0;
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -394,16 +413,20 @@ function AdminAgregar() {
           </div>
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
             <button onClick={() => { update({ adminPage: "inventario", editTool: null }); }} style={{ ...glass(0.06), borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", border: "1px solid rgba(255,255,255,0.07)" }}>Cancelar</button>
-            <button onClick={() => {
+            <button onClick={async () => {
               if (!ef.name || !ef.code || !ef.cat) { toast("Nombre, código y área son obligatorios", "⚠️", "error"); return; }
-              if (isEdit) {
-                update({ tools: state.tools.map(t => t.id === ef.id ? ef : t) });
-                toast(`"${ef.name}" actualizado ✅`);
-              } else {
-                update({ tools: [...state.tools, { ...ef, id: Date.now() }] });
-                toast(`"${ef.name}" agregado al inventario ✅`);
+              try {
+                if (isEdit) {
+                  await updateTool.mutateAsync({ id: ef.id, ...ef });
+                  toast(`"${ef.name}" actualizado ✅`);
+                } else {
+                  await createTool.mutateAsync(ef);
+                  toast(`"${ef.name}" agregado al inventario ✅`);
+                }
+                update({ editTool: null, adminPage: "inventario" });
+              } catch (err: any) {
+                toast(err?.message || "Error al guardar", "❌", "error");
               }
-              update({ editTool: null, adminPage: "inventario" });
             }} style={{ ...glassBlue, borderRadius: 10, padding: "10px 24px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>
               {isEdit ? "Guardar Cambios" : "✅ Agregar Equipo"}
             </button>
@@ -450,6 +473,8 @@ function AdminAgregar() {
 
 function AdminCarreras() {
   const { state, update, toast } = useApp();
+  const createCareer = useCreateCareer();
+  const deleteCareer = useDeleteCareer();
   const CAREER_COLORS = [C.blue, C.green, C.yellow, C.orange, C.purple, C.red];
   const CAREER_ICONS = ["💻", "⚙️", "⚡", "🔬", "🏗️", "🎨", "📐", "🔭", "🌱", "🎓"];
   return (
@@ -473,7 +498,7 @@ function AdminCarreras() {
                 <button onClick={() => {
                   if (state.careers.length <= 1) { toast("Debe haber al menos 1 carrera", "⚠️", "error"); return; }
                   if (!confirm(`¿Eliminar "${cr.name}"?`)) return;
-                  update({ careers: state.careers.filter(c => c.id !== cr.id) });
+                  deleteCareer.mutate(cr.id);
                   toast(`Carrera "${cr.name}" eliminada`, "🗑️", "info");
                 }} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: C.red, padding: "4px 8px", borderRadius: 8 }}>🗑️</button>
               </div>
@@ -515,8 +540,8 @@ function AdminCarreras() {
         <button onClick={() => {
           if (!state.newCareerForm.name.trim()) { toast("Ingresa el nombre de la carrera", "⚠️", "error"); return; }
           if (state.careers.some(c => c.name.toLowerCase() === state.newCareerForm.name.trim().toLowerCase())) { toast("Ya existe una carrera con ese nombre", "⚠️", "error"); return; }
-          const id = Date.now();
-          update({ careers: [...state.careers, { id, name: state.newCareerForm.name.trim(), color: state.newCareerForm.color, icon: state.newCareerForm.icon }], newCareerForm: { name: "", icon: "🎓", color: C.blue } });
+          createCareer.mutate({ name: state.newCareerForm.name.trim(), color: state.newCareerForm.color, icon: state.newCareerForm.icon });
+          update({ newCareerForm: { name: "", icon: "🎓", color: C.blue } });
           toast(`Carrera "${state.newCareerForm.name}" creada ✅`);
         }} style={{ ...glassBlue, borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>
           ✅ Crear Carrera

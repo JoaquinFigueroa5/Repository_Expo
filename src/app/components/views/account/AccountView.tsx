@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useApp } from "../../../context/AppContext";
 import { C, glass, glassDark, glassBlue, STATUS_MAP } from "../../../constants/design";
-import { CURRENT_USER } from "../../../data/user";
+import { useUser } from "../../../context/useUser";
 import { fadeUp, slideLeft } from "../../../animate/variants";
 import { Logo } from "../../atoms/Logo";
 import { Badge } from "../../atoms/Badge";
@@ -20,12 +20,13 @@ const ACCOUNT_MENU = [
 
 function AccountInicio() {
   const { state, getTool } = useApp();
+  const u = useUser();
   const activeLns = state.loans.filter(l => l.status === "active");
   const overdueLns = state.loans.filter(l => l.status === "overdue");
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 4 }}>Bienvenido, {CURRENT_USER.name.split(" ")[0]}</h2>
+        <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 4 }}>Bienvenido, {u.name.split(" ")[0]}</h2>
         <p style={{ color: C.muted, fontSize: 13.5 }}>{new Date().toLocaleDateString("es-GT", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
       <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 22 }}>
@@ -115,20 +116,21 @@ function AccountLoans() {
 }
 
 function AccountProfile() {
+  const u = useUser();
   return (
     <div style={{ maxWidth: 560 }}>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Mi Perfil</h2>
       <div style={{ ...glass(0.06), borderRadius: 18, padding: "24px", marginBottom: 14 }}>
         <div style={{ display: "flex", gap: 18, alignItems: "center", marginBottom: 22, paddingBottom: 22, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", background: `${C.blue}20`, border: `2px solid ${C.blue}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flexShrink: 0, fontWeight: 800, color: C.blue }}>{CURRENT_USER.name[0]}</div>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: `${C.blue}20`, border: `2px solid ${C.blue}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flexShrink: 0, fontWeight: 800, color: C.blue }}>{u.name[0]}</div>
           <div>
-            <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: "-0.02em" }}>{CURRENT_USER.name}</div>
-            <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>{CURRENT_USER.career}</div>
+            <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: "-0.02em" }}>{u.name}</div>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>{u.career}</div>
             <div style={{ marginTop: 6 }}><Badge s="active" /></div>
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 13 }}>
-          {[{ l: "Carnet", v: CURRENT_USER.carnet }, { l: "Correo", v: CURRENT_USER.email }, { l: "Taller Asignado", v: CURRENT_USER.workshop }, { l: "Teléfono", v: CURRENT_USER.phone }].map(({ l, v }) => (
+          {[{ l: "Carnet", v: u.carnet }, { l: "Correo", v: u.email }, { l: "Taller Asignado", v: u.workshop }, { l: "Teléfono", v: u.phone }].map(({ l, v }) => (
             <div key={l}>
               <label style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.4, display: "block", marginBottom: 5 }}>{l}</label>
               <input readOnly style={{ ...glass(0.05, 12), borderRadius: 10, padding: "9px 12px", fontSize: 13, outline: "none", color: "#E8EEFF", width: "100%" }} defaultValue={v} />
@@ -143,12 +145,13 @@ function AccountProfile() {
 
 function AccountCareer() {
   const { state, openToolDetail } = useApp();
-  const careerTools = state.tools.filter(t => t.careers.includes(CURRENT_USER.career));
+  const u = useUser();
+  const careerTools = state.tools.filter(t => t.careers.includes(u.career));
   return (
     <div>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Mi Carrera</h2>
       <div style={{ ...glass(0.06), borderRadius: 16, padding: "20px", marginBottom: 20, display: "flex", gap: 14 }}>
-        {[{ l: "Carrera", v: CURRENT_USER.career }, { l: "Taller", v: CURRENT_USER.workshop }].map(({ l, v }) => (
+        {[{ l: "Carrera", v: u.career }, { l: "Taller", v: u.workshop }].map(({ l, v }) => (
           <div key={l} style={{ ...glass(0.05), borderRadius: 12, padding: "14px", flex: 1 }}>
             <div style={{ fontSize: 10.5, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }}>{l}</div>
             <div style={{ fontWeight: 700, fontSize: 15, marginTop: 5, color: C.blue }}>{v}</div>
@@ -232,6 +235,7 @@ function AccountSettings() {
 
 export default function AccountView() {
   const { state, update } = useApp();
+  const u = useUser();
   const sMap: Record<string, () => React.ReactNode> = {
     inicio: AccountInicio, loans: AccountLoans, profile: AccountProfile,
     career: AccountCareer, favorites: AccountFavorites, settings: AccountSettings,
@@ -252,8 +256,8 @@ export default function AccountView() {
           ))}
         </nav>
         <div style={{ padding: "14px 18px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{CURRENT_USER.name}</div>
-          <div style={{ fontSize: 11, color: "rgba(107,127,168,0.5)", marginTop: 1 }}>{CURRENT_USER.carnet}</div>
+          <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{u.name}</div>
+          <div style={{ fontSize: 11, color: "rgba(107,127,168,0.5)", marginTop: 1 }}>{u.carnet}</div>
         </div>
       </aside>
       <main className="sidebar-content" style={{ marginLeft: 240, flex: 1, padding: "32px 36px" }}>

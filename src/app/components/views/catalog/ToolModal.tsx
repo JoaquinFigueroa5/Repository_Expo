@@ -1,18 +1,22 @@
 import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../../../context/AppContext";
 import { C, glass, glassDark, glassBlue, STATUS_MAP } from "../../../constants/design";
-import { CAT_COLORS } from "../../../data/categories";
-import { CURRENT_USER } from "../../../data/user";
+import { useUser } from "../../../context/useUser";
 import { backdropVariant, scaleIn } from "../../../animate/variants";
 import { Badge } from "../../atoms/Badge";
 import { fmtDate } from "../../../utils";
+import { useTool } from "../../../../hooks/useTools";
+import { mapApiToolToTool } from "../../../../lib/mappers";
 
 export default function ToolModal() {
   const { state, update, toast, openLoanForm } = useApp();
-  const t = state.selectedTool;
+  const u = useUser();
+  const selected = state.selectedTool;
+  const { data: liveTool } = useTool(selected?.id ?? 0);
+  const t = liveTool ? { ...mapApiToolToTool(liveTool), specs: selected?.specs ?? [] } : selected;
   if (!t) return null;
   const sc = STATUS_MAP[t.status];
-  const isAuth = t.careers.includes(CURRENT_USER.career);
+  const isAuth = t.careers.includes(u.career);
   const recentLoans = state.loans.filter(l => l.toolId === t.id).slice(-3);
   const catCol = CAT_COLORS[t.cat] || C.blue;
   return (
@@ -86,7 +90,7 @@ export default function ToolModal() {
                       <span style={{ fontSize: 15 }}>{isAuth ? "✅" : "❌"}</span>
                       <div>
                         <div style={{ fontWeight: 700, color: isAuth ? C.green : C.red, fontSize: 12 }}>{isAuth ? "Autorizado" : "No Autorizado"}</div>
-                        <div style={{ color: C.muted, fontSize: 10.5 }}>{CURRENT_USER.career}</div>
+                        <div style={{ color: C.muted, fontSize: 10.5 }}>{u.career}</div>
                       </div>
                     </div>
                     {t.careers.map(c => (

@@ -516,7 +516,7 @@ PATCH  /api/notifications/:id/read  → Notification
 ## 5. ESTRUCTURA DEL BACKEND
 
 ```
-server/
+BackendExpoMel
 ├── package.json
 ├── tsconfig.json
 ├── .env

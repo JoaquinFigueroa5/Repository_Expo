@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AppProvider, useApp } from "./context/AppContext";
 import { pageBg, C, glassDark } from "./constants/design";
 import { toastVariant, viewTransition } from "./animate/variants";
+import { api } from "../lib/api";
 import Landing from "./components/views/Landing";
 import Login from "./components/views/auth/Login";
 import Register from "./components/views/auth/Register";
@@ -15,8 +17,68 @@ import AccountView from "./components/views/account/AccountView";
 import AdminView from "./components/views/admin/AdminView";
 
 function AppContent() {
-  const { state } = useApp();
+  const { state, update } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [mousePos, setMousePos] = useState({ x: -400, y: -400 });
+  const initialized = useRef(false);
+  const programmaticNav = useRef(false);
+
+  // 1. En montaje, leer la URL actual como estado inicial
+  useEffect(() => {
+    const viewMap: Record<string, string> = {
+      '/': 'landing', '/login': 'login', '/register': 'register',
+      '/forgot-password': 'forgot', '/verify-code': 'verify',
+      '/catalog': 'catalog', '/account': 'account', '/admin': 'admin',
+    }
+    const target = viewMap[location.pathname]
+    if (target && target !== state.view) {
+      update({ view: target as any })
+    }
+    initialized.current = true
+  }, [])
+
+  // 2. state.view → URL (solo después del montaje para no pisar la URL inicial)
+  useEffect(() => {
+    if (!initialized.current) return
+    const pathMap: Record<string, string> = {
+      landing: '/', login: '/login', register: '/register',
+      forgot: '/forgot-password', verify: '/verify-code',
+      catalog: '/catalog', account: '/account', admin: '/admin',
+    }
+    const target = pathMap[state.view]
+    if (target && location.pathname !== target) {
+      programmaticNav.current = true
+      navigate(target, { replace: true })
+    }
+  }, [state.view, navigate])
+
+  // 3. URL → state.view (solo back/forward del navegador, no navegaciones programáticas)
+  useEffect(() => {
+    if (!initialized.current) return
+    if (programmaticNav.current) {
+      programmaticNav.current = false
+      return
+    }
+    const viewMap: Record<string, string> = {
+      '/': 'landing', '/login': 'login', '/register': 'register',
+      '/forgot-password': 'forgot', '/verify-code': 'verify',
+      '/catalog': 'catalog', '/account': 'account', '/admin': 'admin',
+    }
+    const target = viewMap[location.pathname]
+    if (target && target !== state.view) {
+      update({ view: target as any })
+    }
+  }, [location.pathname, update])
+
+  // Redirigir al login si el token expira
+  useEffect(() => {
+    api.onUnauthorized = () => {
+      update({ view: 'login' })
+    }
+    return () => { api.onUnauthorized = undefined }
+  }, [update])
+
   useEffect(() => {
     const onMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
     window.addEventListener("mousemove", onMove);

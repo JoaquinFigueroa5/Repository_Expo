@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../../../context/AppContext";
-import { C, glass, glassDark, glassBlue, STATUS_MAP } from "../../../constants/design";
-import { CAT_ICONS, CAT_COLORS } from "../../../data/categories";
-import { CURRENT_USER } from "../../../data/user";
+import { C, glass, glassDark, glassBlue, STATUS_MAP, CAT_ICONS, CAT_COLORS } from "../../../constants/design";
+import { useUser } from "../../../context/useUser";
 import { fadeUp } from "../../../animate/variants";
 import { Logo } from "../../atoms/Logo";
+import { useTools } from "../../../../hooks/useTools";
+import { useAddFavorite, useRemoveFavorite } from "../../../../hooks/useFavorites";
+import { mapApiToolToTool } from "../../../../lib/mappers";
 
 const HERO_IMAGES = [
   { url: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=1600&h=600&fit=crop&auto=format", label: "Taller de Mecánica" },
@@ -16,11 +18,21 @@ const HERO_IMAGES = [
 
 export default function CatalogView() {
   const { state, update, toast, openToolDetail, openLoanForm } = useApp();
+  const u = useUser();
+  const addFav = useAddFavorite();
+  const removeFav = useRemoveFavorite();
   const [heroIdx, setHeroIdx] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setHeroIdx(i => (i + 1) % HERO_IMAGES.length), 4000);
     return () => clearInterval(iv);
   }, []);
+
+  const { data: apiTools, isLoading } = useTools();
+  useEffect(() => {
+    if (apiTools) {
+      update({ tools: apiTools.map(mapApiToolToTool) as any });
+    }
+  }, [apiTools]);
 
   const overdueLoans = state.loans.filter(l => l.status === "overdue");
 
@@ -104,7 +116,7 @@ export default function CatalogView() {
               </div>
             )}
             <button onClick={() => update({ view: "account" })} style={{ ...glass(0.07), borderRadius: 10, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, border: "1px solid rgba(255,255,255,0.1)" }}>
-              <div style={{ width: 22, height: 22, borderRadius: "50%", background: `${C.blue}22`, border: `1px solid ${C.blue}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: C.blue }}>{CURRENT_USER.name[0]}</div>
+              <div style={{ width: 22, height: 22, borderRadius: "50%", background: `${C.blue}22`, border: `1px solid ${C.blue}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: C.blue }}>{u.name[0]}</div>
               Mi Cuenta
             </button>
             <button onClick={() => update({ view: "admin" })} style={{ ...glass(0.05), borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: C.muted, cursor: "pointer" }}>
@@ -256,7 +268,7 @@ export default function CatalogView() {
                         <span style={{ width: 4, height: 4, borderRadius: "50%", background: sc.color }} />{sc.label}
                       </span>
                     </div>
-                    <button onClick={e => { e.stopPropagation(); update({ favorites: state.favorites.includes(tool.id) ? state.favorites.filter(x => x !== tool.id) : [...state.favorites, tool.id] }); }}
+                    <button onClick={e => { e.stopPropagation(); if (state.favorites.includes(tool.id)) { removeFav.mutate(tool.id); } else { addFav.mutate(tool.id); } }}
                       style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", border: "none", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14, color: isFav ? C.yellow : "rgba(255,255,255,0.5)" }}>
                       {isFav ? "★" : "☆"}
                     </button>
