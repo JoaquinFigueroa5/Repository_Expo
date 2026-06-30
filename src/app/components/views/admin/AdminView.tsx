@@ -22,6 +22,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAllIncidents, useIncidentStats, useUpdateIncident } from "../../../../hooks/useIncidents";
 
+
 const ADMIN_PAGES = [
   { id: "panel", label: "Panel de Control", icon: "⊞" },
   { id: "estadisticas", label: "Estadísticas", icon: "📈" },
@@ -601,8 +602,10 @@ function AdminCarreras() {
                 <button onClick={() => {
                   if (state.careers.length <= 1) { toast("Debe haber al menos 1 carrera", "⚠️", "error"); return; }
                   if (!confirm(`¿Eliminar "${cr.name}"?`)) return;
-                  deleteCareer.mutate(cr.id);
-                  toast(`Carrera "${cr.name}" eliminada`, "🗑️", "info");
+                  deleteCareer.mutate(cr.id, {
+                    onSuccess: () => toast(`Carrera "${cr.name}" eliminada`, "🗑️", "info"),
+                    onError: () => toast("Error al eliminar carrera", "❌", "error"),
+                  });
                 }} style={{ background: "none", border: "none", fontSize: 14, cursor: "pointer", color: C.red, padding: "4px 8px", borderRadius: 8 }}>🗑️</button>
               </div>
             </div>
@@ -643,9 +646,15 @@ function AdminCarreras() {
         <button onClick={() => {
           if (!state.newCareerForm.name.trim()) { toast("Ingresa el nombre de la carrera", "⚠️", "error"); return; }
           if (state.careers.some(c => c.name.toLowerCase() === state.newCareerForm.name.trim().toLowerCase())) { toast("Ya existe una carrera con ese nombre", "⚠️", "error"); return; }
-          createCareer.mutate({ name: state.newCareerForm.name.trim(), color: state.newCareerForm.color, icon: state.newCareerForm.icon });
-          update({ newCareerForm: { name: "", icon: "🎓", color: C.blue } });
-          toast(`Carrera "${state.newCareerForm.name}" creada ✅`);
+          const name = state.newCareerForm.name.trim();
+          const { color, icon } = state.newCareerForm;
+          createCareer.mutate({ name, color, icon }, {
+            onSuccess: () => {
+              update({ newCareerForm: { name: "", icon: "🎓", color: C.blue } });
+              toast(`Carrera "${name}" creada ✅`);
+            },
+            onError: (err: any) => toast(err?.message || "Error al crear carrera", "❌", "error"),
+          });
         }} style={{ ...glassBlue, borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>
           ✅ Crear Carrera
         </button>
