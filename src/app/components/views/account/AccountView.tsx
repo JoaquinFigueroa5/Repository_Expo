@@ -1,3 +1,4 @@
+import React from "react";
 import { motion } from "motion/react";
 import { useApp } from "../../../context/AppContext";
 import { C, glass, glassDark, glassBlue, STATUS_MAP } from "../../../constants/design";
@@ -234,9 +235,9 @@ function AccountSettings() {
 }
 
 export default function AccountView() {
-  const { state, update } = useApp();
+  const { state, update, logout } = useApp();
   const u = useUser();
-  const sMap: Record<string, () => React.ReactNode> = {
+  const sMap: Record<string, React.ComponentType> = {
     inicio: AccountInicio, loans: AccountLoans, profile: AccountProfile,
     career: AccountCareer, favorites: AccountFavorites, settings: AccountSettings,
   };
@@ -258,10 +259,13 @@ export default function AccountView() {
         <div style={{ padding: "14px 18px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{u.name}</div>
           <div style={{ fontSize: 11, color: "rgba(107,127,168,0.5)", marginTop: 1 }}>{u.carnet}</div>
+          <button onClick={() => { logout(); update({ view: "landing" }); }} style={{ marginTop: 10, width: "100%", ...glass(0.05), borderRadius: 10, padding: "7px", fontSize: 12, fontWeight: 600, color: C.red, cursor: "pointer", border: "1px solid rgba(255,255,255,0.07)" }}>
+            Cerrar sesión
+          </button>
         </div>
       </aside>
       <main className="sidebar-content" style={{ marginLeft: 240, flex: 1, padding: "32px 36px" }}>
-        <div style={{ maxWidth: 880 }}>{(sMap[state.accountSection] || AccountInicio)({})}</div>
+        <div style={{ maxWidth: 880 }}>{React.createElement(sMap[state.accountSection] || AccountInicio)}</div>
       </main>
     </div>
   );

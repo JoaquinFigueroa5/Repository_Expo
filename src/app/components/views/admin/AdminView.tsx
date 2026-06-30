@@ -1,3 +1,4 @@
+import React from "react";
 import { motion } from "motion/react";
 import { useApp } from "../../../context/AppContext";
 import { C, glass, glassDark, glassBlue, glassGreen, inp, STATUS_MAP, CAT_ICONS, CAT_COLORS } from "../../../constants/design";
@@ -15,7 +16,10 @@ import { useTopTools, useLoansByMonth, useDelays, useActiveUsers } from "../../.
 import { useCreateTool, useUpdateTool, useDeleteTool } from "../../../../hooks/useTools";
 import { useReturnLoan } from "../../../../hooks/useLoans";
 import { useMyFavorites } from "../../../../hooks/useFavorites";
+import { mapApiLoanToLoan } from "../../../../lib/mappers";
 import { useMyLoans } from "../../../../hooks/useLoans";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const ADMIN_PAGES = [
   { id: "panel", label: "Panel de Control", icon: "⊞" },
@@ -33,6 +37,8 @@ const blank: Tool = { id: 0, name: "", cat: "", code: "", brand: "", location: "
 function AdminPanel() {
   const { state } = useApp();
   const { data: stats } = useAdminStats();
+  const { data: allLoans } = useAllLoans();
+  const panelLoans = allLoans ? allLoans.map(mapApiLoanToLoan) : state.loans;
   const available = stats?.available ?? state.tools.filter(t => t.status === "available").length;
   const inUse = stats?.inUse ?? state.tools.filter(t => t.status === "in_use").length;
   const maintenance = stats?.maintenance ?? state.tools.filter(t => t.status === "maintenance").length;
@@ -47,7 +53,7 @@ function AdminPanel() {
           { label: "Mantenimiento", val: maintenance, c: C.muted, bg: "rgba(107,127,168,0.1)" },
           { label: "Total Equipos", val: stats?.totalTools ?? state.tools.length, c: C.blue, bg: `${C.blue}12` },
           { label: "Solicitudes Pendientes", val: pending, c: C.yellow, bg: `${C.yellow}10` },
-          { label: "Préstamos Activos", val: stats?.activeLoans ?? state.loans.filter(l => l.status === "active").length, c: C.orange, bg: `${C.orange}10` },
+          { label: "Préstamos Activos", val: stats?.activeLoans ?? panelLoans.filter(l => l.status === "active").length, c: C.orange, bg: `${C.orange}10` },
         ].map(({ label, val, c, bg }, i) => (
           <motion.div key={label} className="glow-card" variants={fadeUp} custom={i} initial="hidden" animate="visible"
             whileHover={{ scale: 1.02 }}
@@ -65,7 +71,7 @@ function AdminPanel() {
       </div>
       <div style={{ ...glass(0.05), borderRadius: 18, padding: "20px" }}>
         <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Actividad Reciente</h3>
-        {[...state.loans].reverse().slice(0, 5).map(l => { const t = state.tools.find(t => t.id === l.toolId); return t ? (
+        {[...panelLoans].reverse().slice(0, 5).map(l => { const t = state.tools.find(t => t.id === l.toolId); return t ? (
           <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 13 }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <img src={t.image} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -83,7 +89,7 @@ function AdminEstadisticas() {
   const { state } = useApp();
   const { data: stats } = useAdminStats();
   const { data: allLoans } = useAllLoans();
-  const loans = allLoans ?? state.loans;
+  const loans = allLoans ? allLoans.map(mapApiLoanToLoan) : state.loans;
   const byCat = state.categories.map(c => ({ cat: c, total: state.tools.filter(t => t.cat === c).length, avail: state.tools.filter(t => t.cat === c && t.status === "available").length }));
   const maxTotal = Math.max(...byCat.map(b => b.total), 1);
   const totalLoans = loans.length;
@@ -151,16 +157,18 @@ function AdminEstadisticas() {
 function AdminReportes() {
   const { state, toast } = useApp();
   const { data: topTools } = useTopTools();
+  const { data: allLoans } = useAllLoans();
+  const reportLoans = allLoans ? allLoans.map(mapApiLoanToLoan) : state.loans;
   const loanCounts = topTools?.reduce((acc: Record<string, number>, t: any) => { acc[t.name] = t.count; return acc; }, {}) ?? {};
-  const toolUsage = state.tools.map(t => ({ tool: t, count: loanCounts[t.name] ?? state.loans.filter(l => l.toolId === t.id).length })).sort((a, b) => b.count - a.count).slice(0, 5);
+  const toolUsage = state.tools.map(t => ({ tool: t, count: loanCounts[t.name] ?? reportLoans.filter(l => l.toolId === t.id).length })).sort((a, b) => b.count - a.count).slice(0, 5);
   return (
     <div>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Reportes</h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
         {[
-          { label: "Préstamos este mes", val: state.loans.filter(l => l.loanDate?.startsWith("2026-06")).length, c: C.blue },
-          { label: "Devoluciones pendientes", val: state.loans.filter(l => l.status === "active").length, c: C.orange },
-          { label: "Equipos sin actividad", val: state.tools.filter(t => !state.loans.some(l => l.toolId === t.id)).length, c: C.muted },
+          { label: "Préstamos este mes", val: reportLoans.filter(l => l.loanDate?.startsWith(new Date().toISOString().slice(0, 7))).length, c: C.blue },
+          { label: "Devoluciones pendientes", val: reportLoans.filter(l => l.status === "active").length, c: C.orange },
+          { label: "Equipos sin actividad", val: state.tools.filter(t => !reportLoans.some(l => l.toolId === t.id)).length, c: C.muted },
         ].map(({ label, val, c }) => (
           <div key={label} style={{ ...glass(0.06), borderRadius: 16, padding: "18px", display: "flex", alignItems: "center", gap: 14, border: `1px solid ${c}18` }}>
             <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 32, fontWeight: 800, color: c, letterSpacing: "-0.03em" }}>{val}</div>
@@ -188,12 +196,86 @@ function AdminReportes() {
       <div style={{ ...glass(0.05), borderRadius: 18, padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 15, fontWeight: 700 }}>Historial Completo</h3>
-          <button onClick={() => toast("Exportando reporte PDF...", "📄", "info")} style={{ ...glassBlue, borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>📥 Exportar PDF</button>
+          <button onClick={() => {
+            try {
+              const now = new Date();
+              const doc = new jsPDF({ unit: "mm", format: "a4" });
+              const pageW = 190;
+              let y = 15;
+
+              doc.setFontSize(18);
+              doc.text("Reporte de Préstamos", pageW / 2, y, { align: "center" });
+              y += 8;
+
+              doc.setFontSize(9);
+              doc.text(`Generado: ${now.toLocaleDateString("es-GT", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}`, pageW / 2, y, { align: "center" });
+              y += 10;
+
+              doc.setFontSize(10);
+              doc.setFont("helvetica", "bold");
+              doc.text("Resumen", 14, y);
+              y += 5;
+
+              const loansThisMonth = reportLoans.filter(l => l.loanDate?.startsWith(now.toISOString().slice(0, 7))).length;
+              const pendingReturns = reportLoans.filter(l => l.status === "active").length;
+              const inactiveTools = state.tools.filter(t => !reportLoans.some(l => l.toolId === t.id)).length;
+
+              doc.setFontSize(9);
+              doc.setFont("helvetica", "normal");
+              doc.text(`Préstamos este mes: ${loansThisMonth}    |    Devoluciones pendientes: ${pendingReturns}    |    Equipos sin actividad: ${inactiveTools}`, 14, y);
+              y += 10;
+
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(10);
+              doc.text("Top 5 Equipos Más Solicitados", 14, y);
+              y += 5;
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(9);
+              toolUsage.forEach(({ tool: t, count }, i) => {
+                doc.text(`${i + 1}. ${t.name} (${t.code}) — ${count} préstamos`, 14, y);
+                y += 4.5;
+              });
+              y += 6;
+
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(10);
+              doc.text("Historial Completo", 14, y);
+              y += 5;
+
+              const statusLabels: Record<string, string> = { active: "Activo", returned: "Devuelto", overdue: "Vencido", cancelled: "Cancelado" };
+              const tableData = [...reportLoans].reverse().map(l => {
+                const t = state.tools.find(t => t.id === l.toolId);
+                return [
+                  `#${l.id}`,
+                  t?.name || "—",
+                  t?.code || "—",
+                  fmtDate(l.loanDate),
+                  l.returnDate ? fmtDate(l.returnDate) : fmtDate(l.dueDate),
+                  statusLabels[l.status] || l.status,
+                ];
+              });
+
+              autoTable(doc, {
+                startY: y,
+                head: [["#", "Equipo", "Código", "Préstamo", "Devolución", "Estado"]],
+                body: tableData,
+                theme: "grid",
+                headStyles: { fillColor: [59, 130, 246], fontSize: 9, fontStyle: "bold" },
+                bodyStyles: { fontSize: 8 },
+                margin: { left: 14, right: 14 },
+              });
+
+              doc.save(`reporte-prestamos-${now.toISOString().slice(0, 10)}.pdf`);
+              toast("PDF exportado correctamente", "📄", "success");
+            } catch {
+              toast("Error al generar el PDF", "❌", "error");
+            }
+          }} style={{ ...glassBlue, borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", border: "none" }}>📥 Exportar PDF</button>
         </div>
         <Table>
           <thead><tr><TH>#</TH><TH>Equipo</TH><TH>Préstamo</TH><TH>Devolución</TH><TH>Estado</TH></tr></thead>
           <tbody>
-            {[...state.loans].reverse().map(l => {
+            {[...reportLoans].reverse().map(l => {
               const t = state.tools.find(t => t.id === l.toolId);
               return (
                 <tr key={l.id}>
@@ -256,6 +338,8 @@ function AdminSolicitudes() {
 function AdminActivos() {
   const { state, toast } = useApp();
   const returnLoan = useReturnLoan();
+  const { data: allLoans } = useAllLoans();
+  const activeLoans = allLoans ? allLoans.map(mapApiLoanToLoan) : state.loans;
   return (
     <div>
       <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 20 }}>Préstamos Activos</h2>
@@ -263,7 +347,7 @@ function AdminActivos() {
         <Table>
           <thead><tr><TH>Equipo</TH><TH>Código</TH><TH>Fecha Límite</TH><TH>Estado</TH><TH>Acción</TH></tr></thead>
           <tbody>
-            {state.loans.filter(l => l.status === "active" || l.status === "overdue").map(l => {
+            {activeLoans.filter(l => l.status === "active" || l.status === "overdue").map(l => {
               const t = state.tools.find(t => t.id === l.toolId);
               const dl = Math.ceil((new Date(l.dueDate).getTime() - Date.now()) / 86400000);
               return (
@@ -275,7 +359,7 @@ function AdminActivos() {
                   <TD><span style={{ fontSize: 11, color: C.blue, fontWeight: 600 }}>{t?.code}</span></TD>
                   <TD><span style={{ color: dl < 0 ? C.red : dl <= 1 ? C.orange : "#94a3b8", fontSize: 12.5 }}>{fmtDate(l.dueDate)} {dl < 0 ? `(${Math.abs(dl)}d atraso)` : dl === 0 ? "(Hoy)" : ""}</span></TD>
                   <TD><Badge s={l.status} /></TD>
-                  <TD><button onClick={() => { returnLoan.mutate({ id: l.id, returnDate: today() }); toast("Devolución registrada ✅"); }}
+                  <TD><button onClick={async () => { try { await returnLoan.mutateAsync({ id: l.id, returnDate: today() }); toast("Devolución registrada ✅"); } catch { toast("No se pudo registrar la devolución. Es posible que ya haya sido procesada.", "⚠️", "error"); } }}
                     style={{ ...glass(0.06), borderRadius: 8, padding: "6px 13px", fontSize: 12, fontWeight: 700, color: C.green, cursor: "pointer", border: `1px solid ${C.green}28` }}>
                     Registrar Devolución
                   </button></TD>
@@ -416,11 +500,19 @@ function AdminAgregar() {
             <button onClick={async () => {
               if (!ef.name || !ef.code || !ef.cat) { toast("Nombre, código y área son obligatorios", "⚠️", "error"); return; }
               try {
+                const payload = {
+                  name: ef.name, cat: ef.cat, code: ef.code, location: ef.location,
+                  totalQty: ef.totalQty, available: ef.available, maxDays: ef.maxDays,
+                  desc: ef.desc || undefined, brand: ef.brand || undefined,
+                  image: ef.image || undefined,
+                  specs: ef.specs?.reduce((acc, s) => { if (s.k) acc[s.k] = s.v; return acc; }, {} as Record<string, string>),
+                  careers: ef.careers,
+                };
                 if (isEdit) {
-                  await updateTool.mutateAsync({ id: ef.id, ...ef });
+                  await updateTool.mutateAsync({ id: ef.id, ...payload });
                   toast(`"${ef.name}" actualizado ✅`);
                 } else {
-                  await createTool.mutateAsync(ef);
+                  await createTool.mutateAsync(payload);
                   toast(`"${ef.name}" agregado al inventario ✅`);
                 }
                 update({ editTool: null, adminPage: "inventario" });
@@ -553,7 +645,7 @@ function AdminCarreras() {
 
 export default function AdminView() {
   const { state, update } = useApp();
-  const pageMap: Record<string, () => React.ReactNode> = {
+  const pageMap: Record<string, React.ComponentType> = {
     panel: AdminPanel, estadisticas: AdminEstadisticas, reportes: AdminReportes,
     solicitudes: AdminSolicitudes, activos: AdminActivos,
     inventario: AdminInventario, agregar: AdminAgregar, carreras: AdminCarreras,
@@ -591,7 +683,7 @@ export default function AdminView() {
           </div>
         </div>
         <div style={{ padding: "28px 32px", flex: 1 }}>
-          {(pageMap[state.adminPage] || AdminPanel)({})}
+          {React.createElement(pageMap[state.adminPage] || AdminPanel)}
         </div>
       </div>
     </div>

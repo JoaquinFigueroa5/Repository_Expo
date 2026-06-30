@@ -17,7 +17,7 @@ import AccountView from "./components/views/account/AccountView";
 import AdminView from "./components/views/admin/AdminView";
 
 function AppContent() {
-  const { state, update } = useApp();
+  const { state, update, user, logout } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [mousePos, setMousePos] = useState({ x: -400, y: -400 });
@@ -78,6 +78,13 @@ function AppContent() {
     }
     return () => { api.onUnauthorized = undefined }
   }, [update])
+
+  // Redirigir si un no-admin intenta acceder al panel
+  useEffect(() => {
+    if (state.view === 'admin' && user && user.role !== 'ADMIN') {
+      update({ view: 'catalog' })
+    }
+  }, [state.view, user, update])
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
@@ -242,7 +249,7 @@ function AppContent() {
             <AccountView />
           </motion.div>
         )}
-        {state.view === "admin" && (
+        {state.view === "admin" && user?.role === "ADMIN" && (
           <motion.div key="admin" variants={viewTransition} initial="hidden" animate="visible" exit="exit">
             <AdminView />
           </motion.div>

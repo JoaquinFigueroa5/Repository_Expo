@@ -17,7 +17,7 @@ const HERO_IMAGES = [
 ];
 
 export default function CatalogView() {
-  const { state, update, toast, openToolDetail, openLoanForm } = useApp();
+  const { state, update, toast, openToolDetail, openLoanForm, user, logout } = useApp();
   const u = useUser();
   const addFav = useAddFavorite();
   const removeFav = useRemoveFavorite();
@@ -119,9 +119,14 @@ export default function CatalogView() {
               <div style={{ width: 22, height: 22, borderRadius: "50%", background: `${C.blue}22`, border: `1px solid ${C.blue}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: C.blue }}>{u.name[0]}</div>
               Mi Cuenta
             </button>
-            <button onClick={() => update({ view: "admin" })} style={{ ...glass(0.05), borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: C.muted, cursor: "pointer" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ verticalAlign: "middle", marginRight: 5 }}><circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M4.93 4.93a10 10 0 0 0 0 14.14" /></svg>
-              Admin
+            {user?.role === "ADMIN" && (
+              <button onClick={() => update({ view: "admin" })} style={{ ...glass(0.05), borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: C.muted, cursor: "pointer" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ verticalAlign: "middle", marginRight: 5 }}><circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M4.93 4.93a10 10 0 0 0 0 14.14" /></svg>
+                Admin
+              </button>
+            )}
+            <button onClick={() => { logout(); update({ view: "landing" }); }} style={{ ...glass(0.05), borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, color: C.red, cursor: "pointer" }}>
+              Cerrar sesión
             </button>
           </div>
         </div>

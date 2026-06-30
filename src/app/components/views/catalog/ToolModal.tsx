@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../../../context/AppContext";
-import { C, glass, glassDark, glassBlue, STATUS_MAP } from "../../../constants/design";
+import { C, glass, glassDark, glassBlue, STATUS_MAP, CAT_COLORS } from "../../../constants/design";
 import { useUser } from "../../../context/useUser";
 import { backdropVariant, scaleIn } from "../../../animate/variants";
 import { Badge } from "../../atoms/Badge";

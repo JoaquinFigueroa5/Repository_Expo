@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
+import { getToken } from '../lib/auth'
 import type { ApiTool } from '../app/types'
 
 export function useMyFavorites() {
@@ -7,6 +8,7 @@ export function useMyFavorites() {
     queryKey: ['favorites', 'mine'],
     queryFn: () => api.get<ApiTool[]>('/user/favorites'),
     staleTime: 30 * 1000,
+    enabled: !!getToken(),
   })
 }
 

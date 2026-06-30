@@ -19,6 +19,7 @@ export function useLogin() {
     onSuccess: (res) => {
       setToken(res.token)
       qc.setQueryData(['auth', 'me'], res.user)
+      qc.invalidateQueries()
     },
   })
 }
@@ -30,6 +31,7 @@ export function useRegister() {
     onSuccess: (res) => {
       setToken(res.token)
       qc.setQueryData(['auth', 'me'], res.user)
+      qc.invalidateQueries()
     },
   })
 }

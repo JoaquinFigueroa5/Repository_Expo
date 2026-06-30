@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
+import { getToken } from '../lib/auth'
 import type { ApiUser, Career } from '../app/types'
 
 export function useAdminStats() {
@@ -15,6 +16,7 @@ export function useAdminStats() {
       totalUsers: number
     }>('/admin/stats'),
     staleTime: 30 * 1000,
+    enabled: !!getToken(),
   })
 }
 
@@ -23,6 +25,7 @@ export function useAdminUsers() {
     queryKey: ['admin', 'users'],
     queryFn: () => api.get<ApiUser[]>('/admin/users'),
     staleTime: 30 * 1000,
+    enabled: !!getToken(),
   })
 }
 
@@ -55,6 +58,7 @@ export function useAdminCareers() {
     queryKey: ['admin', 'careers'],
     queryFn: () => api.get<Career[]>('/admin/careers'),
     staleTime: 60 * 1000,
+    enabled: !!getToken(),
   })
 }
 
@@ -87,6 +91,7 @@ export function useAdminCategories() {
     queryKey: ['admin', 'categories'],
     queryFn: () => api.get<any[]>('/admin/categories'),
     staleTime: 60 * 1000,
+    enabled: !!getToken(),
   })
 }
 

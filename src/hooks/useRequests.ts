@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
+import { getToken } from '../lib/auth'
 import type { ApiRequest } from '../app/types'
 
 export function useMyRequests(params?: { status?: string }) {
@@ -7,6 +8,7 @@ export function useMyRequests(params?: { status?: string }) {
     queryKey: ['requests', 'mine', params],
     queryFn: () => api.get<ApiRequest[]>('/user/requests', params as Record<string, string | undefined>),
     staleTime: 30 * 1000,
+    enabled: !!getToken(),
   })
 }
 
@@ -15,6 +17,7 @@ export function useAllRequests(params?: { status?: string }) {
     queryKey: ['requests', 'all', params],
     queryFn: () => api.get<ApiRequest[]>('/requests', params as Record<string, string | undefined>),
     staleTime: 15 * 1000,
+    enabled: !!getToken(),
   })
 }
 

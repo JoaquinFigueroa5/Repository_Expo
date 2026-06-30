@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
+import { getToken } from '../lib/auth'
 import type { ApiLoan } from '../app/types'
 
 export function useMyLoans(params?: { status?: string }) {
@@ -7,6 +8,7 @@ export function useMyLoans(params?: { status?: string }) {
     queryKey: ['loans', 'mine', params],
     queryFn: () => api.get<ApiLoan[]>('/user/loans', params as Record<string, string | undefined>),
     staleTime: 30 * 1000,
+    enabled: !!getToken(),
   })
 }
 
@@ -15,6 +17,7 @@ export function useAllLoans(params?: { status?: string; overdue?: string }) {
     queryKey: ['loans', 'all', params],
     queryFn: () => api.get<ApiLoan[]>('/loans', params as Record<string, string | undefined>),
     staleTime: 15 * 1000,
+    enabled: !!getToken(),
   })
 }
 
