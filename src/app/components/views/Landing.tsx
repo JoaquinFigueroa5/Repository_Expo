@@ -54,7 +54,7 @@ export default function Landing() {
         style={{ background: "rgba(5,5,5,0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: `1px solid ${W.border}`, position: "sticky", top: 0, zIndex: 80 }}>
         <div className="land-header-inner" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 40px", height: 64 }}>
           <div className="land-logo" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/src/imports/E__2_-1.png" alt="REMA" style={{ height: 38, width: "auto", filter: "brightness(1.1) drop-shadow(0 0 8px rgba(56,189,248,0.4))" }} />
+            <img src="/imports/E__2_-1.png" alt="REMA" style={{ height: 38, width: "auto", filter: "brightness(1.1) drop-shadow(0 0 8px rgba(56,189,248,0.4))" }} />
           </div>
           <nav className="land-nav" style={{ display: "flex", gap: 28, alignItems: "center" }}>
             {[
@@ -334,7 +334,7 @@ export default function Landing() {
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 48, marginBottom: 40 }}>
             <div>
               <div style={{ marginBottom: 14 }}>
-                <img src="/src/imports/E__2_-1.png" alt="REMA" style={{ height: 36, width: "auto", filter: "brightness(1.1) drop-shadow(0 0 6px rgba(56,189,248,0.35))" }} />
+                <img src="/imports/E__2_-1.png" alt="REMA" style={{ height: 36, width: "auto", filter: "brightness(1.1) drop-shadow(0 0 6px rgba(56,189,248,0.35))" }} />
               </div>
               <p style={{ fontSize: 13, color: W.textFaint, lineHeight: 1.7, maxWidth: 260, marginBottom: 20 }}>Sistema institucional para préstamo de herramientas, equipos de laboratorio y dispositivos de los talleres.</p>
               <div style={{ display: "flex", gap: 10 }}>

@@ -28,7 +28,7 @@ export default function Login() {
         <div style={{ position: "absolute", top: "10%", left: "5%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle,rgba(37,99,235,0.18),transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "20%", right: "0%", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle,rgba(56,189,248,0.09),transparent 70%)", pointerEvents: "none" }} />
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
-          <img src="/src/imports/E__2_-2.png" alt="REMA" style={{ height: 52, width: "auto", filter: "brightness(1.1) drop-shadow(0 0 12px rgba(56,189,248,0.45))" }} />
+          <img src="/imports/E__2_-2.png" alt="REMA" style={{ height: 52, width: "auto", filter: "brightness(1.1) drop-shadow(0 0 12px rgba(56,189,248,0.45))" }} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.6, ease: [0.22,1,0.36,1] }}>
           <h1 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 52, fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.03em", color: "#fff", marginBottom: 16 }}>

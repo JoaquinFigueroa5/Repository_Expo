@@ -28,7 +28,7 @@ class ApiClient {
   public onUnauthorized?: () => void
 
   constructor() {
-    this.base = import.meta.env.VITE_API_URL || 'https://rema-lilac.vercel.app/'
+    this.base = import.meta.env.VITE_API_URL || 'https://repository-backendmelexpo.onrender.com'
   }
 
   private getToken(): string | null {
